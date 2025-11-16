@@ -1,27 +1,24 @@
-using SoundFlow.Abstracts;
-using SoundFlow.Abstracts.Devices;
-using SoundFlow.Backends.MiniAudio;
 using SoundFlow.Components;
+using SoundFlow.Interfaces;
 using SoundFlow.Providers;
 using SoundFlow.Structs;
-using SoundFlow.Interfaces;
-using StreamAudio.Core.Interfaces;
 
 namespace StreamAudio.Core.Sources;
 
 /// <summary>
-/// Audio source that reads from an audio file (WAV, MP3, etc.) using SoundFlow.
+/// Audio source that reads from an audio file using SoundFlow.
+/// Wraps a SoundPlayer for easy file playback with looping support.
 /// </summary>
-public class FileAudioSource : IAudioSource
+public class FileAudioSource : IDisposable
 {
-  private readonly AudioEngine engine;
   private readonly SoundPlayer player;
   private readonly ISoundDataProvider dataProvider;
+  private readonly FileStream fileStream;
   private readonly string filePath;
-  private readonly Stream fileStream;
+  private readonly System.Timers.Timer? loopTimer;
   private bool disposed;
 
-  public FileAudioSource(string filePath)
+  public FileAudioSource(string filePath, AudioFormat? format = null)
   {
     if (string.IsNullOrWhiteSpace(filePath))
       throw new ArgumentException("File path cannot be null or empty.", nameof(filePath));
@@ -30,96 +27,104 @@ public class FileAudioSource : IAudioSource
       throw new FileNotFoundException($"Audio file not found: {filePath}");
 
     this.filePath = filePath;
-    
-    // Create engine and file stream
-    engine = new MiniAudioEngine();
+
+    // Use provided format or default to DVD HQ quality
+    format ??= AudioFormat.DvdHq;
+
+    // Open file stream
     fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-    
-    // Determine audio format from file (defaulting to CD quality)
-    var format = AudioFormat.CdQuality;
-    
-    // Create the data provider for the file stream
-    dataProvider = new StreamDataProvider(engine, format, fileStream);
-    
-    // Create a player with the data provider
-    player = new SoundPlayer(engine, format, dataProvider);
+
+    // Create data provider from stream
+    var engine = AudioEngineManager.Engine;
+    dataProvider = new StreamDataProvider(engine, format.Value, fileStream);
+
+    // Create player
+    player = new SoundPlayer(engine, format.Value, dataProvider);
+
+    // Set up a timer to check for playback end and loop if needed
+    loopTimer = new System.Timers.Timer(100); // Check every 100ms
+    loopTimer.Elapsed += (sender, e) =>
+    {
+      if (Loop && player.State == SoundFlow.Enums.PlaybackState.Stopped && !disposed)
+      {
+        // Seek back to beginning
+        try
+        {
+          fileStream.Seek(0, SeekOrigin.Begin);
+          player.Play();
+        }
+        catch
+        {
+          // Ignore errors during loop
+        }
+      }
+    };
+    loopTimer.Start();
   }
 
+  /// <summary>
+  /// Gets the file name.
+  /// </summary>
   public string Name => Path.GetFileName(filePath);
 
+  /// <summary>
+  /// Gets the audio format.
+  /// </summary>
+  public AudioFormat Format => player.Format;
+
+  /// <summary>
+  /// Gets the sample rate.
+  /// </summary>
   public int SampleRate => player.Format.SampleRate;
 
+  /// <summary>
+  /// Gets the number of channels.
+  /// </summary>
   public int Channels => player.Format.Channels;
 
-  public bool Repeat { get; set; }
+  /// <summary>
+  /// Gets or sets whether the audio should loop.
+  /// Note: Looping is handled by monitoring playback state and restarting when finished.
+  /// </summary>
+  public bool Loop { get; set; }
 
-  public bool HasEnded { get; private set; }
+  /// <summary>
+  /// Gets the underlying SoundPlayer for advanced operations.
+  /// </summary>
+  public SoundPlayer Player => player;
 
-  public int Read(float[] buffer, int offset, int count)
-  {
-    if (disposed)
-      throw new ObjectDisposedException(nameof(FileAudioSource));
+  /// <summary>
+  /// Plays the audio.
+  /// </summary>
+  public void Play() => player.Play();
 
-    try
-    {
-      // Read data from the provider
-      byte[] byteBuffer = new byte[count * sizeof(float)];
-      int bytesRead = dataProvider.Read(byteBuffer, 0, byteBuffer.Length);
-      
-      if (bytesRead == 0)
-      {
-        // End of stream
-        if (Repeat)
-        {
-          // Seek to beginning
-          fileStream.Seek(0, SeekOrigin.Begin);
-          bytesRead = dataProvider.Read(byteBuffer, 0, byteBuffer.Length);
-        }
-        else
-        {
-          HasEnded = true;
-          // Fill with silence
-          Array.Fill(buffer, 0f, offset, count);
-          return count;
-        }
-      }
+  /// <summary>
+  /// Pauses the audio.
+  /// </summary>
+  public void Pause() => player.Pause();
 
-      // Convert bytes to floats
-      int samplesRead = bytesRead / sizeof(float);
-      Buffer.BlockCopy(byteBuffer, 0, buffer, offset * sizeof(float), bytesRead);
-      
-      // Fill any remaining with silence if we didn't get enough samples
-      if (samplesRead < count)
-      {
-        Array.Fill(buffer, 0f, offset + samplesRead, count - samplesRead);
-        if (!Repeat)
-        {
-          HasEnded = true;
-        }
-        samplesRead = count;
-      }
+  /// <summary>
+  /// Stops the audio.
+  /// </summary>
+  public void Stop() => player.Stop();
 
-      return samplesRead;
-    }
-    catch
-    {
-      // On error, fill with silence
-      Array.Fill(buffer, 0f, offset, count);
-      HasEnded = true;
-      return count;
-    }
-  }
+  /// <summary>
+  /// Gets the current playback state.
+  /// </summary>
+  public SoundFlow.Enums.PlaybackState State => player.State;
 
   public void Dispose()
   {
     if (disposed)
       return;
 
+    disposed = true;
+    loopTimer?.Stop();
+    loopTimer?.Dispose();
+    player?.Stop();
     player?.Dispose();
     dataProvider?.Dispose();
     fileStream?.Dispose();
-    engine?.Dispose();
-    disposed = true;
     GC.SuppressFinalize(this);
   }
 }
