@@ -29,7 +29,7 @@
 
 ## Project Plan
 
-## Current Status: Phase 3 COMPLETED ✅
+## Current Status: Phase 4 IN PROGRESS
 
 **Last Updated**: November 16, 2025
 
@@ -130,17 +130,17 @@
   - ✅ **Tested on Linux**: Verified on Ubuntu 24.04 (Raspberry Pi compatible)
   - ✅ **Cross-platform ready**: SoundFlow backend supports all platforms via MiniAudio
 
-### Phase 4: TTS Integration & Stream Management
+### Phase 4: Dynamic Stream Management
 * Goals
-  - Add TTS audio stream input support.
   - Implement dynamic source volume control and prioritization.
   - Enhance runtime API for managing active sources.
+  - Add advanced stream control features.
 * Tasks
-  - Integrate TTS streams (network stream decoding to PCM).
   - Extend mixer to dynamically change primary stream and adjust background volumes accordingly.
   - Add runtime APIs to add/remove sources and change primary stream.
   - Implement mute/unmute controls.
-  - Extend tests to cover TTS stream scenarios and volume prioritization logic.
+  - Add fade-in/fade-out capabilities for smooth transitions.
+  - Extend tests to cover volume prioritization and stream management scenarios.
 ### Phase 5: Advanced Features & Robustness
 * Goals
   - Introduce error handling, reconnection logic.
@@ -162,6 +162,21 @@
   - Package app with dependencies for Raspberry Pi (including native binaries).
   - Automated build pipelines with Windows and Linux targets.
   - Conduct user acceptance testing (UAT) and fix discovered issues.
+
+### Phase 7: System Integration
+* Goals
+  - Integrate external audio stream sources into the system.
+  - Add TTS audio stream input support.
+  - Integrate additional streaming sources (USB audio, network streams, etc.).
+  - Validate end-to-end system functionality.
+* Tasks
+  - Integrate TTS streams (network stream decoding to PCM).
+  - Add USB audio device input stream support.
+  - Implement network audio stream handling.
+  - Add radio stream input capabilities.
+  - Extend tests to cover TTS stream scenarios and external source integration.
+  - Perform comprehensive integration testing with all audio sources.
+  - Validate system performance with multiple concurrent streams.
 ### Testing Data & Automation
 * Synthetic Test Tones: Generate short WAV files with 1-second 100Hz and 200Hz sine wave tones included in unit tests.
 * Mixed Output Validation: Automated tests confirm amplitude, sample counts, wave shapes of mixed output match expected composite tone.
