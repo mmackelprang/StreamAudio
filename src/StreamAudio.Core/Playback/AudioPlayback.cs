@@ -2,6 +2,7 @@ using SoundFlow.Abstracts.Devices;
 using SoundFlow.Components;
 using SoundFlow.Structs;
 using SoundFlow.Enums;
+using StreamAudio.Core.Platform;
 
 namespace StreamAudio.Core.Playback;
 
@@ -22,6 +23,23 @@ public class AudioPlayback : IDisposable
   public AudioPlayback(AudioFormat? format = null)
   {
     this.format = format ?? AudioFormat.DvdHq;
+
+    // Initialize playback device with default device (null DeviceInfo)
+    var engine = AudioEngineManager.Engine;
+    playbackDevice = engine.InitializePlaybackDevice(null, this.format);
+    playbackDevice.Start();
+  }
+
+  /// <summary>
+  /// Creates a new AudioPlayback instance with the specified configuration.
+  /// </summary>
+  /// <param name="configuration">The audio configuration to use.</param>
+  public AudioPlayback(AudioConfiguration configuration)
+  {
+    if (configuration == null)
+      throw new ArgumentNullException(nameof(configuration));
+
+    this.format = configuration.Format;
 
     // Initialize playback device with default device (null DeviceInfo)
     var engine = AudioEngineManager.Engine;
