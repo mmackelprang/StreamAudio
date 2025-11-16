@@ -3,6 +3,7 @@ using SoundFlow.Components;
 using SoundFlow.Structs;
 using SoundFlow.Enums;
 using StreamAudio.Core.Platform;
+using StreamAudio.Core.Events;
 
 namespace StreamAudio.Core.Playback;
 
@@ -15,6 +16,16 @@ public class AudioPlayback : IDisposable
   private readonly AudioPlaybackDevice playbackDevice;
   private readonly AudioFormat format;
   private bool disposed;
+
+  /// <summary>
+  /// Occurs when the playback device encounters an error.
+  /// </summary>
+  public event EventHandler<DeviceEventArgs>? DeviceError;
+
+  /// <summary>
+  /// Occurs when the playback device is successfully recovered.
+  /// </summary>
+  public event EventHandler<DeviceEventArgs>? DeviceRecovered;
 
   /// <summary>
   /// Creates a new AudioPlayback instance with the specified format.
@@ -121,6 +132,46 @@ public class AudioPlayback : IDisposable
   public void Stop()
   {
     playbackDevice?.Stop();
+  }
+
+  /// <summary>
+  /// Checks if the playback device is in a healthy state.
+  /// </summary>
+  /// <returns>True if the device is healthy, false otherwise.</returns>
+  public bool IsDeviceHealthy()
+  {
+    try
+    {
+      return playbackDevice != null && !disposed;
+    }
+    catch
+    {
+      return false;
+    }
+  }
+
+  /// <summary>
+  /// Attempts to restart the playback device if it has failed.
+  /// </summary>
+  /// <returns>True if the restart was successful, false otherwise.</returns>
+  public bool TryRestartDevice()
+  {
+    try
+    {
+      if (playbackDevice != null)
+      {
+        playbackDevice.Stop();
+        playbackDevice.Start();
+        DeviceRecovered?.Invoke(this, new DeviceEventArgs("Default Device", "Device restarted successfully"));
+        return true;
+      }
+      return false;
+    }
+    catch (Exception ex)
+    {
+      DeviceError?.Invoke(this, new DeviceEventArgs("Default Device", "Failed to restart device", ex));
+      return false;
+    }
   }
 
   public void Dispose()

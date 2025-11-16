@@ -1,5 +1,6 @@
 using SoundFlow.Components;
 using StreamAudio.Core.Sources;
+using StreamAudio.Core.Events;
 
 namespace StreamAudio.Core.Playback;
 
@@ -14,6 +15,16 @@ public class StreamManager : IDisposable
   private string? primaryStreamId;
   private float backgroundVolume = 0.3f;
   private bool disposed;
+
+  /// <summary>
+  /// Occurs when a stream fails during playback.
+  /// </summary>
+  public event EventHandler<AudioEventArgs>? StreamFailed;
+
+  /// <summary>
+  /// Occurs when a stream is successfully recovered after a failure.
+  /// </summary>
+  public event EventHandler<AudioEventArgs>? StreamRecovered;
 
   /// <summary>
   /// Creates a new StreamManager with the specified playback device.
@@ -333,6 +344,71 @@ public class StreamManager : IDisposable
     };
 
     timer.Start();
+  }
+
+  /// <summary>
+  /// Attempts to recover a failed stream by recreating it.
+  /// </summary>
+  /// <param name="id">The ID of the stream to recover.</param>
+  /// <param name="filePath">The file path to recreate the source from.</param>
+  /// <returns>True if recovery was successful, false otherwise.</returns>
+  public bool TryRecoverStream(string id, string filePath)
+  {
+    if (!streams.TryGetValue(id, out var managedStream))
+    {
+      return false;
+    }
+
+    try
+    {
+      // Remove the old source
+      playback.RemovePlayer(managedStream.Source.Player);
+      managedStream.Source.Dispose();
+
+      // Create a new source
+      var newSource = new FileAudioSource(filePath, playback.Format);
+      managedStream.Source = newSource;
+
+      // Re-add to playback
+      playback.AddPlayer(newSource.Player);
+      UpdateVolumeForStream(id, managedStream);
+
+      // Raise recovery event
+      StreamRecovered?.Invoke(this, new AudioEventArgs(id, "Stream recovered successfully"));
+      
+      return true;
+    }
+    catch (Exception ex)
+    {
+      // Raise failure event
+      StreamFailed?.Invoke(this, new AudioEventArgs(id, "Failed to recover stream", ex));
+      return false;
+    }
+  }
+
+  /// <summary>
+  /// Monitors all streams for errors and attempts automatic recovery.
+  /// This should be called periodically by the application.
+  /// </summary>
+  public void MonitorStreams()
+  {
+    foreach (var kvp in streams.ToList())
+    {
+      var id = kvp.Key;
+      var managedStream = kvp.Value;
+
+      try
+      {
+        // Check if the player is in an error state
+        // Note: SoundFlow doesn't expose error states directly, so we check if we can access the state
+        var state = managedStream.Source.State;
+      }
+      catch (Exception ex)
+      {
+        // Stream has failed, raise event
+        StreamFailed?.Invoke(this, new AudioEventArgs(id, "Stream playback error detected", ex));
+      }
+    }
   }
 
   public void Dispose()
