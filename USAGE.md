@@ -143,6 +143,78 @@ if (PlatformInfo.IsRaspberryPi)
 }
 ```
 
+### Dynamic Stream Management (Phase 4)
+
+StreamManager provides advanced stream management with primary/background prioritization, mute controls, and smooth transitions.
+
+```csharp
+using StreamAudio.Core;
+using StreamAudio.Core.Sources;
+using StreamAudio.Core.Playback;
+
+// Create playback device and stream manager
+using var playback = new AudioPlayback();
+using var manager = new StreamManager(playback);
+
+// Add sources with IDs
+using var speech = new FileAudioSource("speech.wav");
+using var music = new FileAudioSource("music.wav") { Loop = true };
+
+// Add speech as primary stream (plays at 100% volume)
+manager.AddSource("speech", speech, isPrimary: true);
+
+// Add music as background (plays at 30% volume by default)
+manager.AddSource("music", music);
+
+// Start playback
+manager.Play("speech");
+manager.Play("music", fadeIn: true); // Fade in the background music
+
+// Wait for speech to finish, then switch primary
+Thread.Sleep(5000);
+manager.SetPrimaryStream("music");  // Music now at 100%, speech at 30%
+
+// Mute a stream
+manager.Mute("speech");
+
+// Fade out and remove a stream
+manager.RemoveSource("speech", fadeOut: true);
+
+// Cleanup
+AudioEngineManager.Dispose();
+```
+
+### Adjusting Background Volume
+
+```csharp
+using var manager = new StreamManager(playback);
+
+// Set background volume to 50% (default is 30%)
+manager.BackgroundVolume = 0.5f;
+
+// Add streams - non-primary streams will use this volume
+manager.AddSource("stream1", source1, isPrimary: true);  // 100% volume
+manager.AddSource("stream2", source2);                   // 50% volume
+manager.AddSource("stream3", source3);                   // 50% volume
+```
+
+### Smooth Transitions with Fade
+
+```csharp
+using var manager = new StreamManager(playback);
+manager.AddSource("stream1", source);
+
+// Fade in over 2 seconds
+manager.Play("stream1", fadeIn: true);
+manager.FadeIn("stream1", durationMs: 2000);
+
+// Fade out over 3 seconds
+manager.FadeOut("stream1", durationMs: 3000);
+
+// Stop with fade-out
+manager.Stop("stream1", fadeOut: true);
+```
+
 ## API Reference
 
 ### FileAudioSource
@@ -259,6 +331,35 @@ Information about an audio device.
 - `bool IsDefault` - True if default device
 - `string DeviceType` - Device type (USB, HDMI, Bluetooth, etc.)
 
+### StreamManager
+
+Manages multiple audio streams with dynamic volume control, prioritization, and transitions.
+
+**Constructor:**
+```csharp
+var manager = new StreamManager(AudioPlayback playback);
+```
+
+**Properties:**
+- `float BackgroundVolume` - Volume for background streams (0.0 to 1.0, default 0.3)
+- `string? PrimaryStreamId` - ID of current primary stream
+- `int StreamCount` - Number of active streams
+
+**Methods:**
+- `void AddSource(string id, FileAudioSource source, bool isPrimary = false)` - Add a source
+- `void RemoveSource(string id, bool fadeOut = true)` - Remove a source
+- `void SetPrimaryStream(string id)` - Set which stream is primary (full volume)
+- `void ClearPrimaryStream()` - Clear primary designation (all at background volume)
+- `void Play(string id, bool fadeIn = false)` - Play a stream
+- `void Pause(string id)` - Pause a stream
+- `void Stop(string id, bool fadeOut = false)` - Stop a stream
+- `void Mute(string id)` - Mute a stream
+- `void Unmute(string id)` - Unmute a stream
+- `bool IsMuted(string id)` - Check if stream is muted
+- `void FadeIn(string id, int durationMs = 1000, Action? onComplete = null)` - Fade in
+- `void FadeOut(string id, int durationMs = 1000, Action? onComplete = null)` - Fade out
+- `float GetVolume(string id)` - Get current volume
+
 ## Examples
 
 See the project tools for complete working examples:
@@ -294,6 +395,18 @@ dotnet run --project tools/ToneGenerator/ToneGenerator.csproj -- 100 1 WAV outpu
 
 # Generate a 200 Hz tone for 2 seconds as WAV
 dotnet run --project tools/ToneGenerator/ToneGenerator.csproj -- 200 2 WAV tone.wav
+```
+
+### StreamDemo
+Demonstrates dynamic stream management features from Phase 4:
+1. Primary/background volume control
+2. Mute/unmute functionality
+3. Fade-in/fade-out transitions
+4. Dynamic stream addition/removal
+
+Run the demo:
+```bash
+dotnet run --project tools/StreamDemo/StreamDemo.csproj
 ```
 
 ## Supported Audio Formats
