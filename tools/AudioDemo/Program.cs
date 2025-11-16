@@ -25,7 +25,7 @@ Console.WriteLine("---------------------------------------");
 try
 {
   using var source = new FileAudioSource(tone100Hz);
-  using var output = new WaveOutAudioOutput(source.SampleRate, source.Channels);
+  using var output = new SoundFlowAudioOutput(source.SampleRate, source.Channels);
   
   output.Initialize(source);
   output.Play();
@@ -60,7 +60,7 @@ try
   mixer.SetVolume(source1, 0.5f);
   mixer.SetVolume(source2, 0.5f);
   
-  using var output = new WaveOutAudioOutput(mixer.SampleRate, mixer.Channels);
+  using var output = new SoundFlowAudioOutput(mixer.SampleRate, mixer.Channels);
   output.Initialize(mixer);
   output.Play();
   
@@ -95,7 +95,7 @@ try
   mixer.AddSource(primarySource, isPrimary: true);
   mixer.AddSource(backgroundSource, isPrimary: false);
   
-  using var output = new WaveOutAudioOutput(mixer.SampleRate, mixer.Channels);
+  using var output = new SoundFlowAudioOutput(mixer.SampleRate, mixer.Channels);
   output.Initialize(mixer);
   output.Play();
   

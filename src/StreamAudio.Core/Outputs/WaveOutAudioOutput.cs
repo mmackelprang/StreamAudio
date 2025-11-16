@@ -1,15 +1,24 @@
-using NAudio.Wave;
+using SoundFlow.Abstracts;
+using SoundFlow.Abstracts.Devices;
+using SoundFlow.Backends.MiniAudio;
+using SoundFlow.Components;
+using SoundFlow.Providers;
+using SoundFlow.Structs;
+using SoundFlow.Interfaces;
 using StreamAudio.Core.Interfaces;
 
 namespace StreamAudio.Core.Outputs;
 
 /// <summary>
-/// Audio output using NAudio's WaveOut for cross-platform playback.
+/// Audio output using SoundFlow for cross-platform playback.
 /// </summary>
-public class WaveOutAudioOutput : IAudioOutput
+public class SoundFlowAudioOutput : IAudioOutput
 {
-  private IWavePlayer? waveOut;
-  private SampleToWaveProvider? waveProvider;
+  private readonly AudioEngine engine;
+  private AudioPlaybackDevice? playbackDevice;
+  private SoundPlayer? player;
+  private IAudioSourceStream? sourceStream;
+  private ISoundDataProvider? dataProvider;
   private IAudioSource? source;
   private bool disposed;
 
@@ -19,11 +28,14 @@ public class WaveOutAudioOutput : IAudioOutput
 
   public int Channels { get; }
 
-  public WaveOutAudioOutput(int sampleRate = 44100, int channels = 1)
+  public SoundFlowAudioOutput(int sampleRate = 44100, int channels = 1)
   {
     SampleRate = sampleRate;
     Channels = channels;
     DeviceName = "Default Audio Device";
+    
+    // Create the SoundFlow audio engine
+    engine = new MiniAudioEngine();
   }
 
   public void Initialize(IAudioSource source)
@@ -39,30 +51,42 @@ public class WaveOutAudioOutput : IAudioOutput
 
     this.source = source;
 
-    // Create wave provider that wraps our audio source
-    waveProvider = new SampleToWaveProvider(source);
+    // Create audio format
+    var format = new AudioFormat(SampleRate, Channels);
 
-    // Create wave out device
-    waveOut = new WaveOutEvent();
-    waveOut.Init(waveProvider);
+    // Create a stream wrapper for our audio source
+    sourceStream = new IAudioSourceStream(source);
+
+    // Create data provider from the stream
+    dataProvider = new StreamDataProvider(engine, format, sourceStream);
+
+    // Create playback device
+    playbackDevice = engine.CreatePlaybackDevice();
+    playbackDevice.Start();
+
+    // Create a player with the data provider
+    player = new SoundPlayer(engine, format, dataProvider);
+    
+    // Add the player to the master mixer
+    playbackDevice.MasterMixer.AddComponent(player);
   }
 
   public void Play()
   {
-    if (waveOut == null)
+    if (player == null)
       throw new InvalidOperationException("Output must be initialized before playing.");
 
-    waveOut.Play();
+    player.Play();
   }
 
   public void Stop()
   {
-    waveOut?.Stop();
+    player?.Stop();
   }
 
   public void Pause()
   {
-    waveOut?.Pause();
+    player?.Pause();
   }
 
   public void Dispose()
@@ -70,9 +94,26 @@ public class WaveOutAudioOutput : IAudioOutput
     if (disposed)
       return;
 
-    waveOut?.Stop();
-    waveOut?.Dispose();
-    waveOut = null;
+    if (player != null && playbackDevice != null)
+    {
+      player.Stop();
+      playbackDevice.MasterMixer.RemoveComponent(player);
+    }
+
+    player?.Dispose();
+    player = null;
+
+    playbackDevice?.Stop();
+    playbackDevice?.Dispose();
+    playbackDevice = null;
+
+    dataProvider?.Dispose();
+    dataProvider = null;
+
+    sourceStream?.Dispose();
+    sourceStream = null;
+
+    engine?.Dispose();
 
     source?.Dispose();
     source = null;
@@ -82,33 +123,62 @@ public class WaveOutAudioOutput : IAudioOutput
   }
 
   /// <summary>
-  /// Adapter that converts IAudioSource to IWaveProvider for NAudio.
+  /// Stream wrapper that adapts IAudioSource to Stream for use with StreamDataProvider.
   /// </summary>
-  private class SampleToWaveProvider : IWaveProvider
+  private class IAudioSourceStream : Stream
   {
     private readonly IAudioSource audioSource;
-    private readonly WaveFormat waveFormat;
+    private long position;
 
-    public SampleToWaveProvider(IAudioSource audioSource)
+    public IAudioSourceStream(IAudioSource audioSource)
     {
       this.audioSource = audioSource;
-      waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(audioSource.SampleRate, audioSource.Channels);
+      position = 0;
     }
 
-    public WaveFormat WaveFormat => waveFormat;
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => long.MaxValue;
 
-    public int Read(byte[] buffer, int offset, int count)
+    public override long Position
     {
-      // Convert byte count to float count (4 bytes per float)
-      int floatCount = count / 4;
+      get => position;
+      set => throw new NotSupportedException("Seeking is not supported.");
+    }
+
+    public override void Flush() { }
+
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+      // Convert byte count to float count
+      int floatCount = count / sizeof(float);
       float[] floatBuffer = new float[floatCount];
 
+      // Read from the audio source
       int samplesRead = audioSource.Read(floatBuffer, 0, floatCount);
 
-      // Convert float samples to bytes
-      Buffer.BlockCopy(floatBuffer, 0, buffer, offset, samplesRead * 4);
+      // Convert floats to bytes
+      Buffer.BlockCopy(floatBuffer, 0, buffer, offset, samplesRead * sizeof(float));
 
-      return samplesRead * 4;
+      int bytesRead = samplesRead * sizeof(float);
+      position += bytesRead;
+      return bytesRead;
+    }
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+      throw new NotSupportedException("Seeking is not supported.");
+    }
+
+    public override void SetLength(long value)
+    {
+      throw new NotSupportedException("SetLength is not supported.");
+    }
+
+    public override void Write(byte[] buffer, int offset, int count)
+    {
+      throw new NotSupportedException("Writing is not supported.");
     }
   }
 }

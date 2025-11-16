@@ -1,6 +1,4 @@
-﻿using NAudio.Wave;
-
-if (args.Length < 4)
+﻿if (args.Length < 4)
 {
   Console.WriteLine("ToneGenerator - Generate audio test files");
   Console.WriteLine("Usage: ToneGenerator <frequency> <duration> <format> <output-file>");
@@ -37,7 +35,7 @@ try
   // Create the sine wave generator
   int sampleRate = 44100;
   int channels = 1; // Mono
-  var sineWave = new SineWaveProvider32(frequency, sampleRate);
+  var sineWave = new SineWaveProvider(frequency, sampleRate);
 
   // Calculate total samples needed
   int totalSamples = (int)(sampleRate * duration);
@@ -64,12 +62,15 @@ catch (Exception ex)
   return 1;
 }
 
-void GenerateWav(SineWaveProvider32 sineWave, string outputFile, int totalSamples, int sampleRate, int channels)
+void GenerateWav(SineWaveProvider sineWave, string outputFile, int totalSamples, int sampleRate, int channels)
 {
-  // Use IEEE float format which is what SineWaveProvider32 produces
-  var waveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
-  using var writer = new WaveFileWriter(outputFile, waveFormat);
+  using var outputStream = new FileStream(outputFile, FileMode.Create, FileAccess.Write);
+  using var writer = new BinaryWriter(outputStream);
   
+  // Write WAV header
+  WriteWavHeader(writer, totalSamples, sampleRate, channels);
+  
+  // Write audio data
   float[] buffer = new float[sampleRate]; // 1 second buffer
   int samplesWritten = 0;
 
@@ -81,18 +82,48 @@ void GenerateWav(SineWaveProvider32 sineWave, string outputFile, int totalSample
     if (samplesRead == 0)
       break;
 
-    writer.WriteSamples(buffer, 0, samplesRead);
+    // Write floats as bytes
+    for (int i = 0; i < samplesRead; i++)
+    {
+      writer.Write(buffer[i]);
+    }
+    
     samplesWritten += samplesRead;
   }
 }
 
-void GenerateMp3(SineWaveProvider32 sineWave, string outputFile, int totalSamples, int sampleRate, int channels)
+void WriteWavHeader(BinaryWriter writer, int totalSamples, int sampleRate, int channels)
+{
+  int bytesPerSample = 4; // 32-bit float
+  int dataSize = totalSamples * channels * bytesPerSample;
+  
+  // RIFF header
+  writer.Write(new[] { 'R', 'I', 'F', 'F' });
+  writer.Write(36 + dataSize); // File size - 8
+  writer.Write(new[] { 'W', 'A', 'V', 'E' });
+  
+  // fmt chunk
+  writer.Write(new[] { 'f', 'm', 't', ' ' });
+  writer.Write(16); // fmt chunk size
+  writer.Write((short)3); // Audio format (3 = IEEE float)
+  writer.Write((short)channels);
+  writer.Write(sampleRate);
+  writer.Write(sampleRate * channels * bytesPerSample); // Byte rate
+  writer.Write((short)(channels * bytesPerSample)); // Block align
+  writer.Write((short)(bytesPerSample * 8)); // Bits per sample
+  
+  // data chunk
+  writer.Write(new[] { 'd', 'a', 't', 'a' });
+  writer.Write(dataSize);
+}
+
+void GenerateMp3(SineWaveProvider sineWave, string outputFile, int totalSamples, int sampleRate, int channels)
 {
   // MP3 encoding requires platform-specific support
   // For now, we'll generate a WAV file with .mp3 extension and provide guidance
   Console.WriteLine("WARNING: MP3 encoding requires additional setup.");
   Console.WriteLine("For testing purposes, generating WAV format instead.");
-  Console.WriteLine("To enable MP3: Install NAudio.Lame package and LAME encoder.");
+  Console.WriteLine("To enable MP3: Use FFmpeg or LAME to convert WAV to MP3.");
   
   // Generate as WAV for now
   string wavFile = Path.ChangeExtension(outputFile, ".wav");
@@ -103,33 +134,16 @@ void GenerateMp3(SineWaveProvider32 sineWave, string outputFile, int totalSample
 }
 
 // Simple sine wave provider that outputs 32-bit float samples
-public class SineWaveProvider32 : IWaveProvider
+public class SineWaveProvider
 {
   private readonly float frequency;
   private readonly int sampleRate;
   private int sampleIndex;
 
-  public SineWaveProvider32(float frequency, int sampleRate)
+  public SineWaveProvider(float frequency, int sampleRate)
   {
     this.frequency = frequency;
     this.sampleRate = sampleRate;
-    WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
-  }
-
-  public WaveFormat WaveFormat { get; }
-
-  public int Read(byte[] buffer, int offset, int count)
-  {
-    // Convert to float array for easier manipulation
-    int floatCount = count / 4; // 4 bytes per float
-    float[] floatBuffer = new float[floatCount];
-    
-    Read(floatBuffer, 0, floatCount);
-    
-    // Convert float array back to bytes
-    Buffer.BlockCopy(floatBuffer, 0, buffer, offset, count);
-    
-    return count;
   }
 
   public int Read(float[] buffer, int offset, int count)
