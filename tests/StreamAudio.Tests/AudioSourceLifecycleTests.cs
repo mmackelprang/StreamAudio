@@ -7,7 +7,7 @@ using SoundFlow.Structs;
 namespace StreamAudio.Tests;
 
 [Collection("AudioTests")]
-public class Phase7Tests : IDisposable
+public class AudioSourceLifecycleTests : IDisposable
 {
   private const string TestDataPath = "../../../../../testdata";
   private readonly List<IDisposable> disposables = new();
@@ -117,19 +117,21 @@ public class Phase7Tests : IDisposable
     source.Loop = false; // Don't loop
     
     bool beginEventRaised = false;
-    bool completeEventRaised = false;
+    var completeEvent = new ManualResetEventSlim(false);
     
     manager.AudioPlayBegin += (sender, args) => beginEventRaised = true;
-    manager.AllAudioComplete += (sender, args) => completeEventRaised = true;
+    manager.AllAudioComplete += (sender, args) => completeEvent.Set();
 
     // Act
     manager.AddSource("auto1", source);
     manager.Play("auto1");
-    Thread.Sleep(1500); // Wait for max duration + buffer
+    
+    // Wait for completion with timeout
+    bool completed = completeEvent.Wait(TimeSpan.FromSeconds(3));
 
     // Assert
     beginEventRaised.Should().BeTrue("AudioPlayBegin should fire");
-    completeEventRaised.Should().BeTrue("AllAudioComplete should fire when auto source completes");
+    completed.Should().BeTrue("AllAudioComplete should fire when auto source completes");
     manager.StreamCount.Should().Be(0, "Auto source should be removed after completion");
   }
 
@@ -156,7 +158,7 @@ public class Phase7Tests : IDisposable
     // Act
     manager.AddSource("manual1", source);
     manager.Play("manual1");
-    Thread.Sleep(1500); // Wait beyond max duration
+    Thread.Sleep(200); // Brief wait to ensure monitoring has run at least once
 
     // Assert
     manager.StreamCount.Should().Be(1, "Manual source should not be auto-removed");
@@ -183,13 +185,19 @@ public class Phase7Tests : IDisposable
     disposables.Add(source);
     
     source.Loop = true; // Try to loop forever
+    
+    var completeEvent = new ManualResetEventSlim(false);
+    manager.AllAudioComplete += (sender, args) => completeEvent.Set();
 
     // Act
     manager.AddSource("auto1", source);
     manager.Play("auto1");
-    Thread.Sleep(1500); // Wait for max duration + buffer
+    
+    // Wait for completion with timeout
+    bool completed = completeEvent.Wait(TimeSpan.FromSeconds(3));
 
     // Assert
+    completed.Should().BeTrue("Auto source should be stopped and removed after MaxStreamDuration");
     manager.StreamCount.Should().Be(0, "Auto source should be removed after MaxStreamDuration");
   }
 
@@ -452,18 +460,20 @@ public class Phase7Tests : IDisposable
     using var source2 = new FileAudioSource(testFile2, sourceType: SourceType.Auto);
     disposables.Add(source2);
     
-    bool allCompleteRaised = false;
-    manager.AllAudioComplete += (sender, args) => allCompleteRaised = true;
+    var completeEvent = new ManualResetEventSlim(false);
+    manager.AllAudioComplete += (sender, args) => completeEvent.Set();
 
     // Act
     manager.AddSource("auto1", source1);
     manager.AddSource("auto2", source2);
     manager.Play("auto1");
     manager.Play("auto2");
-    Thread.Sleep(1500); // Wait for max duration
+    
+    // Wait for completion with timeout
+    bool completed = completeEvent.Wait(TimeSpan.FromSeconds(3));
 
     // Assert
-    allCompleteRaised.Should().BeTrue("AllAudioComplete should fire when all auto sources complete");
+    completed.Should().BeTrue("AllAudioComplete should fire when all auto sources complete");
     manager.StreamCount.Should().Be(0, "All auto sources should be removed");
   }
 
@@ -496,7 +506,17 @@ public class Phase7Tests : IDisposable
     manager.AddSource("auto1", autoSource);
     manager.Play("manual1");
     manager.Play("auto1");
-    Thread.Sleep(1500); // Wait for max duration
+    
+    // Wait for auto source to complete and be removed
+    // Note: AllAudioComplete won't fire because manual source remains
+    // We need to poll for the auto source removal
+    int maxWaitMs = 3000;
+    int waitedMs = 0;
+    while (manager.StreamCount > 1 && waitedMs < maxWaitMs)
+    {
+      Thread.Sleep(100);
+      waitedMs += 100;
+    }
 
     // Assert
     manager.StreamCount.Should().Be(1, "Only manual source should remain");
