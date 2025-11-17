@@ -255,7 +255,30 @@
     - All tools packaged for Raspberry Pi
     - Automated build scripts included
 
-### Phase 7: System Integration
+### Phase 7: Audio Stream Improvements
+* Goals and Tasks
+  - Create an interface for AudioPlayback - IAudioPlayback so we can easily mock actual audio streams and create other types of playback devices like a Chromcast device.
+  - Create an FFTAudioPlayback device that will accept incoming audio, and once the audio stream is complete, perform an FFT on the audio data.  It should make the top 5 frequencies and intensity and total audio duration avaiable.  This will be a tool we use to do integration tests using the sample data already created.
+  - Create an interface for AudioSources, and make FileAudioSource an implementation of that interface.  Realize that we will want to create at least the following AudioSources eventually (out of scope for this phase):
+    - TtsAudioSource - Sends text to a TTS engine and recives an audio stream from this.
+    - CompositeAudioSource - Has a set of both text and audio files that are played in a particular order (to have a phone ring while announcing who is calling for example).
+  - For the AudioSouce interface, introduce a new variable called SourceType.  This can have two values:
+    - Manual - this type of audio source is set by the user and is considered to be a long-running audio source.  This would include sources like Spotify, Audio File Selector that allows selecting a playlist or directory, USB Radio, USB Phonograph.  These AudioSource types normally have a user interface with two parts - the device configuration UI and the playback management UI.  Creation of these devices is out of scope for this phase, but will be addressed in a later phase.
+    - Auto - this type of audio source is set by the stytem and is considered to be a short-running audio event.  This would include things like a Phone Ring, Doorbell Ring, System Notification, etc. Once the audio from Auto sources completes, they remove are automatically removed from the StreamManager.
+ - The StreamManager is updated to provide the following notifications:
+    - Audio Play Begin - This happens when there is no audio streaming and any auto audio source begins streaming.
+    - All Audio Complete. This happens whenever no AudioSources are finished streaming.
+  - Auto AudioSources should have a repeat count that is honored by AudioManager.  This should default to 1. If the repeat count is 0, it loops forever. 
+  - AudioManager doesn't actully allow an AudioSource to loop forever - it has a configurable max duration for Auto AudioStreams. Set the default value of the MaxStreamDuration to 30 sec. 
+  - Create new system tests to verify the following:
+    - Verify the StreamManager events work as expected.
+    - Using the FFT AudioPlayback type, verify that mixing works with various tone input files.
+    - Using the FFT AudioPlayback type, verify that audio duration is correct for various repeat lengths.
+    - Verify that Auto and Manual AudioSources are managed by StreamManager as expected.
+    - Verify that StreamManager honors the MaxStreamLength parameter for Auto AudioSource
+    - Any other relevant tests.
+
+### Phase 8: System Integration
 * Goals
   - Integrate external audio stream sources into the system.
   - Add TTS audio stream input support.
