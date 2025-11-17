@@ -1,3 +1,5 @@
+using SoundFlow.Abstracts;
+using SoundFlow.Abstracts.Devices;
 using SoundFlow.Components;
 using SoundFlow.Structs;
 using StreamAudio.Core.Events;
@@ -22,11 +24,56 @@ public class FrequencyResult
 }
 
 /// <summary>
+/// Custom audio analyzer that captures audio data for FFT analysis.
+/// </summary>
+internal class AudioCaptureAnalyzer : AudioAnalyzer
+{
+  private readonly List<float> capturedSamples;
+  private readonly object lockObject;
+
+  public AudioCaptureAnalyzer(AudioFormat format, List<float> capturedSamples, object lockObject)
+    : base(format)
+  {
+    this.capturedSamples = capturedSamples;
+    this.lockObject = lockObject;
+    Name = "FFT Capture Analyzer";
+  }
+
+  protected override void Analyze(Span<float> buffer, int channels)
+  {
+    // Capture the audio data
+    // For stereo, only capture the left channel to avoid doubling the sample rate
+    lock (lockObject)
+    {
+      if (channels == 1)
+      {
+        // Mono - capture all samples
+        for (int i = 0; i < buffer.Length; i++)
+        {
+          capturedSamples.Add(buffer[i]);
+        }
+      }
+      else
+      {
+        // Stereo or multi-channel - only capture left channel (every N samples)
+        for (int i = 0; i < buffer.Length; i += channels)
+        {
+          capturedSamples.Add(buffer[i]);
+        }
+      }
+    }
+  }
+}
+
+/// <summary>
 /// Audio playback device that captures audio data and performs FFT analysis when playback completes.
-/// Used primarily for integration testing to verify audio mixing and duration.
 /// 
-/// IMPORTANT: Memory Usage Considerations
-/// ---------------------------------------
+/// This device creates a real AudioPlaybackDevice and attaches an AudioAnalyzer to capture
+/// the mixed audio output. The device outputs to the system's audio hardware but also captures
+/// the data for FFT analysis.
+/// 
+/// Memory Usage Considerations:
+/// ----------------------------
 /// This playback device stores all captured audio samples in memory for FFT analysis.
 /// Memory usage is approximately: SampleRate * Channels * Duration * 4 bytes (float)
 /// 
@@ -34,15 +81,14 @@ public class FrequencyResult
 /// - 1 minute @ 44.1kHz stereo: ~10.5 MB
 /// - 5 minutes @ 44.1kHz stereo: ~52.5 MB
 /// - 10 minutes @ 44.1kHz stereo: ~105 MB
-/// 
-/// For long-running audio streams, consider using this device only for short test scenarios
-/// or implementing a rolling buffer approach for production use.
 /// </summary>
 public class FFTAudioPlayback : IAudioPlayback
 {
   private readonly AudioFormat format;
   private readonly List<float> capturedSamples = new();
   private readonly object lockObject = new();
+  private AudioPlaybackDevice? playbackDevice;
+  private AudioCaptureAnalyzer? captureAnalyzer;
   private DateTime? playbackStartTime;
   private DateTime? playbackEndTime;
   private bool disposed;
@@ -73,9 +119,9 @@ public class FFTAudioPlayback : IAudioPlayback
   public AudioFormat Format => format;
 
   /// <summary>
-  /// Gets the mock mixer for this playback device.
+  /// Gets the built-in mixer for this playback device.
   /// </summary>
-  public Mixer Mixer { get; private set; } = null!;
+  public Mixer Mixer => playbackDevice?.MasterMixer!;
 
   /// <summary>
   /// Gets the top frequencies found in the captured audio.
@@ -122,21 +168,28 @@ public class FFTAudioPlayback : IAudioPlayback
     if (player == null)
       throw new ArgumentNullException(nameof(player));
 
-    // Initialize mixer if not already done
-    if (Mixer == null)
+    // Initialize playback device if not already done
+    if (playbackDevice == null)
     {
       var engine = AudioEngineManager.Engine;
-      Mixer = new Mixer(engine, format);
+      playbackDevice = engine.InitializePlaybackDevice(null, format);
+      
+      // Create and attach capture analyzer to the mixer
+      // This will be called automatically by SoundFlow's audio processing pipeline
+      captureAnalyzer = new AudioCaptureAnalyzer(format, capturedSamples, lockObject);
+      playbackDevice.MasterMixer.AddAnalyzer(captureAnalyzer);
+      
+      // Start the device to begin audio processing
+      playbackDevice.Start();
     }
 
-    Mixer.AddComponent(player);
+    playbackDevice.MasterMixer.AddComponent(player);
 
-    // Start capturing when first player is added
+    // Mark as playing when first player is added
     if (!isPlaying)
     {
       isPlaying = true;
       playbackStartTime = DateTime.UtcNow;
-      StartCapturing();
     }
   }
 
@@ -149,7 +202,7 @@ public class FFTAudioPlayback : IAudioPlayback
     if (player == null)
       throw new ArgumentNullException(nameof(player));
 
-    Mixer?.RemoveComponent(player);
+    playbackDevice?.MasterMixer.RemoveComponent(player);
   }
 
   /// <summary>
@@ -190,7 +243,10 @@ public class FFTAudioPlayback : IAudioPlayback
     {
       isPlaying = false;
       playbackEndTime = DateTime.UtcNow;
-      StopCapturing();
+      
+      // Stop the playback device
+      playbackDevice?.Stop();
+      
       PerformFFTAnalysis();
     }
   }
@@ -215,70 +271,6 @@ public class FFTAudioPlayback : IAudioPlayback
 
     DeviceRecovered?.Invoke(this, new DeviceEventArgs("FFT Device", "Device restarted successfully"));
     return true;
-  }
-
-  /// <summary>
-  /// Starts capturing audio data from the mixer.
-  /// </summary>
-  private void StartCapturing()
-  {
-    // Hook into the mixer's audio processing pipeline
-    // SoundFlow mixers process audio in real-time, so we need to capture
-    // the mixed output as it's being generated
-    Task.Run(async () =>
-    {
-      const int bufferSizeMs = 20; // 20ms buffer for smooth capture
-      int samplesPerBuffer = (format.SampleRate * format.Channels * bufferSizeMs) / 1000;
-      
-      while (isPlaying && !disposed)
-      {
-        await Task.Delay(bufferSizeMs);
-        
-        // Capture the current mixer output
-        // In a real SoundFlow implementation, we would use a callback or buffer reader
-        // For testing purposes, we simulate the mixed audio based on active players
-        CaptureCurrentMixerState(samplesPerBuffer);
-      }
-    });
-  }
-
-  /// <summary>
-  /// Stops capturing audio data.
-  /// </summary>
-  private void StopCapturing()
-  {
-    // Capture is stopped by setting isPlaying to false
-  }
-
-  /// <summary>
-  /// Captures the current state of the mixer output.
-  /// In a production implementation, this would read from the actual mixer output buffer.
-  /// </summary>
-  private void CaptureCurrentMixerState(int samplesPerBuffer)
-  {
-    if (Mixer == null)
-      return;
-
-    lock (lockObject)
-    {
-      // For testing purposes, we generate representative sample data
-      // A real implementation would read from the mixer's output buffer
-      // using SoundFlow's audio pipeline callbacks or buffer access methods
-      
-      // Note: This is a simplified simulation for testing
-      // Real audio capture would:
-      // 1. Hook into the mixer's process callback
-      // 2. Read the actual mixed float samples from the output buffer
-      // 3. Store them directly without generation
-      
-      for (int i = 0; i < samplesPerBuffer; i++)
-      {
-        // Generate a test waveform that simulates mixed audio
-        // This would be replaced with actual buffer reads in production
-        float sample = (float)Math.Sin(2 * Math.PI * 440 * capturedSamples.Count / format.SampleRate);
-        capturedSamples.Add(sample);
-      }
-    }
   }
 
   /// <summary>
@@ -414,7 +406,14 @@ public class FFTAudioPlayback : IAudioPlayback
       return;
 
     Stop();
-    Mixer?.Dispose();
+    
+    // Remove the analyzer before disposing
+    if (playbackDevice != null && captureAnalyzer != null)
+    {
+      playbackDevice.MasterMixer.RemoveAnalyzer(captureAnalyzer);
+    }
+    
+    playbackDevice?.Dispose();
     disposed = true;
     GC.SuppressFinalize(this);
   }

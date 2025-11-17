@@ -7,13 +7,16 @@ Console.WriteLine("========================================");
 Console.WriteLine();
 
 // Check if test files exist
-string testDataPath = Path.Combine("..", "..", "..", "..", "..", "testdata");
+string testDataPath = Path.Combine(".", "testdata");
 string tone100Hz = Path.Combine(testDataPath, "100hz.wav");
 string tone200Hz = Path.Combine(testDataPath, "200hz.wav");
 
 if (!File.Exists(tone100Hz) || !File.Exists(tone200Hz))
 {
   Console.WriteLine("ERROR: Test files not found in testdata/ directory.");
+  Console.WriteLine("Please ensure the following files exist:");
+  Console.WriteLine($"  {tone100Hz}");
+  Console.WriteLine($"  {tone200Hz}");
   Console.WriteLine("Please run the ToneGenerator tool first to create test files:");
   Console.WriteLine("  dotnet run --project tools/ToneGenerator/ToneGenerator.csproj -- 100 1 WAV testdata/100hz.wav");
   Console.WriteLine("  dotnet run --project tools/ToneGenerator/ToneGenerator.csproj -- 200 1 WAV testdata/200hz.wav");

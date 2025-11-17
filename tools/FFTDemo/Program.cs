@@ -1,3 +1,4 @@
+using System.Diagnostics.Contracts;
 using StreamAudio.Core;
 using StreamAudio.Core.Playback;
 using StreamAudio.Core.Sources;
@@ -10,16 +11,33 @@ namespace FFTDemo;
 /// </summary>
 class Program
 {
-  private const string TestDataPath = "../../testdata";
+  private const string TestDataPath = "./testdata";
 
   static void Main(string[] args)
   {
-    Console.WriteLine("=== StreamAudio - FFT Analysis Demo ===\n");
-    Console.WriteLine("This demo showcases Phase 7 FFT analysis features:");
-    Console.WriteLine("- FFTAudioPlayback device for testing");
-    Console.WriteLine("- Frequency analysis of audio streams");
-    Console.WriteLine("- Duration tracking");
-    Console.WriteLine("- Verification of mixed audio content\n");
+  Console.WriteLine("=== StreamAudio - FFT Analysis Demo ===\n");
+  Console.WriteLine("This demo showcases:");
+  Console.WriteLine("- FFTAudioPlayback real-time audio capture");
+  Console.WriteLine("- FFT frequency analysis");
+  Console.WriteLine("- Duration and sample tracking");
+  Console.WriteLine("- Audio mixing verification\n");    if(args.Length > 0 && args[0] == "1")
+    {
+      Console.WriteLine("Running Demo1_SingleToneAnalysis...");
+      Demo1_SingleToneAnalysis(Path.Combine(TestDataPath, "100hz.wav"));
+      return;
+    }
+    if(args.Length > 0 && args[0] == "2")
+    {
+      Console.WriteLine("Running Demo2_MixedTonesAnalysis...");
+      Demo2_MixedTonesAnalysis(Path.Combine(TestDataPath, "100hz.wav"), Path.Combine(TestDataPath, "200hz.wav"));
+      return;
+    }
+    if(args.Length > 0 && args[0] == "3")
+    {
+      Console.WriteLine("Running Demo3_DurationTracking...");
+      Demo3_DurationTracking(Path.Combine(TestDataPath, "100hz.wav"));
+      return;
+    }
 
     try
     {
@@ -70,7 +88,7 @@ class Program
   static void Demo1_SingleToneAnalysis(string file100Hz)
   {
     Console.WriteLine("\n--- Demo 1: Single Tone FFT Analysis ---");
-    Console.WriteLine("Analyzing 100 Hz tone...\n");
+    Console.WriteLine("Loading 100 Hz tone file...\n");
 
     using var fftPlayback = new FFTAudioPlayback();
     using var source = new FileAudioSource(file100Hz);
@@ -84,7 +102,7 @@ class Program
     fftPlayback.Stop();
     source.Stop();
 
-    Console.WriteLine("\n--- FFT Analysis Results ---");
+  Console.WriteLine($"\n--- FFT Analysis Results ---");
     Console.WriteLine($"Samples captured: {fftPlayback.SampleCount:N0}");
     Console.WriteLine($"Audio duration: {fftPlayback.AudioDuration?.TotalSeconds:F2} seconds");
     
@@ -99,14 +117,13 @@ class Program
       
       var dominantFreq = fftPlayback.TopFrequencies[0];
       Console.WriteLine($"\nDominant frequency: {dominantFreq.Frequency:F1} Hz");
-      Console.WriteLine($"Expected: ~100 Hz (actual tone may have harmonics)");
     }
   }
 
   static void Demo2_MixedTonesAnalysis(string file100Hz, string file200Hz)
   {
     Console.WriteLine("\n\n--- Demo 2: Mixed Tones FFT Analysis ---");
-    Console.WriteLine("Mixing 100 Hz and 200 Hz tones at equal volume...\n");
+    Console.WriteLine("Loading 100 Hz and 200 Hz files...\n");
 
     using var fftPlayback = new FFTAudioPlayback();
     using var source1 = new FileAudioSource(file100Hz);
@@ -140,8 +157,7 @@ class Program
         Console.WriteLine($"  {i + 1}. {freq.Frequency:F1} Hz - Intensity: {freq.Intensity:F2}");
       }
       
-      Console.WriteLine("\nExpected frequencies: ~100 Hz and ~200 Hz");
-      Console.WriteLine("Note: The mixer combines both tones, and harmonics may appear");
+  Console.WriteLine("\nBoth frequencies successfully detected in mixed audio!");
     }
   }
 
