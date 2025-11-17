@@ -9,7 +9,7 @@ namespace StreamAudio.Core.Sources;
 /// Audio source that reads from an audio file using SoundFlow.
 /// Wraps a SoundPlayer for easy file playback with looping support.
 /// </summary>
-public class FileAudioSource : IDisposable
+public class FileAudioSource : IAudioSource
 {
   private readonly SoundPlayer player;
   private readonly ISoundDataProvider dataProvider;
@@ -17,8 +17,10 @@ public class FileAudioSource : IDisposable
   private readonly string filePath;
   private readonly System.Timers.Timer? loopTimer;
   private bool disposed;
+  private int repeatCount = 1;
+  private int currentPlayCount = 0;
 
-  public FileAudioSource(string filePath, AudioFormat? format = null)
+  public FileAudioSource(string filePath, AudioFormat? format = null, SourceType sourceType = SourceType.Manual)
   {
     if (string.IsNullOrWhiteSpace(filePath))
       throw new ArgumentException("File path cannot be null or empty.", nameof(filePath));
@@ -27,6 +29,7 @@ public class FileAudioSource : IDisposable
       throw new FileNotFoundException($"Audio file not found: {filePath}");
 
     this.filePath = filePath;
+    this.SourceType = sourceType;
 
     // Use provided format or default to DVD HQ quality
     format ??= AudioFormat.DvdHq;
@@ -47,15 +50,20 @@ public class FileAudioSource : IDisposable
     {
       if (Loop && player.State == SoundFlow.Enums.PlaybackState.Stopped && !disposed)
       {
-        // Seek back to beginning
-        try
+        // Check if we should repeat based on RepeatCount
+        currentPlayCount++;
+        if (RepeatCount == 0 || currentPlayCount < RepeatCount)
         {
-          fileStream.Seek(0, SeekOrigin.Begin);
-          player.Play();
-        }
-        catch
-        {
-          // Ignore errors during loop
+          // Seek back to beginning
+          try
+          {
+            fileStream.Seek(0, SeekOrigin.Begin);
+            player.Play();
+          }
+          catch
+          {
+            // Ignore errors during loop
+          }
         }
       }
     };
@@ -83,6 +91,28 @@ public class FileAudioSource : IDisposable
   public int Channels => player.Format.Channels;
 
   /// <summary>
+  /// Gets the type of this source (Manual or Auto).
+  /// </summary>
+  public SourceType SourceType { get; }
+
+  /// <summary>
+  /// Gets or sets the number of times to repeat this source.
+  /// 0 means infinite loop (only applies to Auto sources).
+  /// Default is 1 (play once).
+  /// </summary>
+  public int RepeatCount
+  {
+    get => repeatCount;
+    set
+    {
+      if (value < 0)
+        throw new ArgumentOutOfRangeException(nameof(value), "RepeatCount must be non-negative.");
+      repeatCount = value;
+      currentPlayCount = 0; // Reset the play count when setting new repeat count
+    }
+  }
+
+  /// <summary>
   /// Gets or sets whether the audio should loop.
   /// Note: Looping is handled by monitoring playback state and restarting when finished.
   /// </summary>
@@ -96,7 +126,11 @@ public class FileAudioSource : IDisposable
   /// <summary>
   /// Plays the audio.
   /// </summary>
-  public void Play() => player.Play();
+  public void Play()
+  {
+    currentPlayCount = 0; // Reset count when explicitly played
+    player.Play();
+  }
 
   /// <summary>
   /// Pauses the audio.
