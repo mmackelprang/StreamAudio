@@ -1,6 +1,7 @@
 using SoundFlow.Components;
 using StreamAudio.Core.Sources;
 using StreamAudio.Core.Events;
+using System.Timers;
 
 namespace StreamAudio.Core.Playback;
 
@@ -10,11 +11,13 @@ namespace StreamAudio.Core.Playback;
 /// </summary>
 public class StreamManager : IDisposable
 {
-  private readonly AudioPlayback playback;
+  private readonly IAudioPlayback playback;
   private readonly Dictionary<string, ManagedStream> streams = new();
+  private readonly System.Timers.Timer monitorTimer;
   private string? primaryStreamId;
   private float backgroundVolume = 0.3f;
   private bool disposed;
+  private bool wasPlaying = false;
 
   /// <summary>
   /// Occurs when a stream fails during playback.
@@ -27,12 +30,27 @@ public class StreamManager : IDisposable
   public event EventHandler<AudioEventArgs>? StreamRecovered;
 
   /// <summary>
+  /// Occurs when audio playback begins from an idle state.
+  /// </summary>
+  public event EventHandler? AudioPlayBegin;
+
+  /// <summary>
+  /// Occurs when all audio sources have completed playback.
+  /// </summary>
+  public event EventHandler? AllAudioComplete;
+
+  /// <summary>
   /// Creates a new StreamManager with the specified playback device.
   /// </summary>
-  /// <param name="playback">The AudioPlayback instance to use for mixing.</param>
-  public StreamManager(AudioPlayback playback)
+  /// <param name="playback">The IAudioPlayback instance to use for mixing.</param>
+  public StreamManager(IAudioPlayback playback)
   {
     this.playback = playback ?? throw new ArgumentNullException(nameof(playback));
+    
+    // Set up a timer to monitor Auto sources
+    monitorTimer = new System.Timers.Timer(100); // Check every 100ms
+    monitorTimer.Elapsed += MonitorAutoSources;
+    monitorTimer.Start();
   }
 
   /// <summary>
@@ -53,6 +71,12 @@ public class StreamManager : IDisposable
   }
 
   /// <summary>
+  /// Gets or sets the maximum duration for Auto audio streams in seconds.
+  /// Default is 30 seconds. Set to 0 to disable the limit.
+  /// </summary>
+  public int MaxStreamDuration { get; set; } = 30;
+
+  /// <summary>
   /// Gets the ID of the current primary stream, or null if none is set.
   /// </summary>
   public string? PrimaryStreamId => primaryStreamId;
@@ -68,7 +92,7 @@ public class StreamManager : IDisposable
   /// <param name="id">Unique identifier for this stream.</param>
   /// <param name="source">The audio source to add.</param>
   /// <param name="isPrimary">If true, this stream becomes the primary stream.</param>
-  public void AddSource(string id, FileAudioSource source, bool isPrimary = false)
+  public void AddSource(string id, IAudioSource source, bool isPrimary = false)
   {
     if (string.IsNullOrWhiteSpace(id))
       throw new ArgumentException("Stream ID cannot be null or empty.", nameof(id));
@@ -79,12 +103,15 @@ public class StreamManager : IDisposable
     if (streams.ContainsKey(id))
       throw new InvalidOperationException($"Stream with ID '{id}' already exists.");
 
+    bool wasIdle = streams.Count == 0 || !AnyStreamPlaying();
+
     var managedStream = new ManagedStream
     {
       Source = source,
       TargetVolume = isPrimary ? 1.0f : backgroundVolume,
       CurrentVolume = 0.0f,
-      IsMuted = false
+      IsMuted = false,
+      StartTime = DateTime.UtcNow
     };
 
     streams[id] = managedStream;
@@ -94,6 +121,13 @@ public class StreamManager : IDisposable
     if (isPrimary)
     {
       SetPrimaryStream(id);
+    }
+
+    // If we were idle and this is an Auto source that starts playing, fire AudioPlayBegin
+    if (wasIdle && source.SourceType == SourceType.Auto)
+    {
+      AudioPlayBegin?.Invoke(this, EventArgs.Empty);
+      wasPlaying = true;
     }
   }
 
@@ -365,7 +399,7 @@ public class StreamManager : IDisposable
       playback.RemovePlayer(managedStream.Source.Player);
       managedStream.Source.Dispose();
 
-      // Create a new source
+      // Create a new source - only FileAudioSource for now
       var newSource = new FileAudioSource(filePath, playback.Format);
       managedStream.Source = newSource;
 
@@ -411,12 +445,86 @@ public class StreamManager : IDisposable
     }
   }
 
+  /// <summary>
+  /// Monitors Auto sources for completion and enforces MaxStreamDuration.
+  /// </summary>
+  private void MonitorAutoSources(object? sender, ElapsedEventArgs e)
+  {
+    if (disposed)
+      return;
+
+    var streamsToRemove = new List<string>();
+
+    foreach (var kvp in streams.ToList())
+    {
+      var id = kvp.Key;
+      var managedStream = kvp.Value;
+
+      // Only process Auto sources
+      if (managedStream.Source.SourceType != SourceType.Auto)
+        continue;
+
+      try
+      {
+        var state = managedStream.Source.State;
+
+        // Check if stream has stopped
+        if (state == SoundFlow.Enums.PlaybackState.Stopped)
+        {
+          streamsToRemove.Add(id);
+          continue;
+        }
+
+        // Check if stream has exceeded max duration
+        if (MaxStreamDuration > 0)
+        {
+          var elapsed = (DateTime.UtcNow - managedStream.StartTime).TotalSeconds;
+          if (elapsed >= MaxStreamDuration)
+          {
+            managedStream.Source.Stop();
+            streamsToRemove.Add(id);
+          }
+        }
+      }
+      catch
+      {
+        // If there's an error accessing the state, mark for removal
+        streamsToRemove.Add(id);
+      }
+    }
+
+    // Remove completed Auto sources
+    foreach (var id in streamsToRemove)
+    {
+      RemoveSourceInternal(id, streams[id]);
+    }
+
+    // Check if all audio is now complete
+    if (wasPlaying && streams.Count == 0)
+    {
+      AllAudioComplete?.Invoke(this, EventArgs.Empty);
+      wasPlaying = false;
+    }
+  }
+
+  /// <summary>
+  /// Checks if any stream is currently playing.
+  /// </summary>
+  private bool AnyStreamPlaying()
+  {
+    return streams.Values.Any(s => s.Source.State == SoundFlow.Enums.PlaybackState.Playing);
+  }
+
   public void Dispose()
   {
     if (disposed)
       return;
 
     disposed = true;
+
+    // Stop the monitor timer
+    monitorTimer?.Stop();
+    monitorTimer?.Dispose();
 
     // Stop and remove all streams
     foreach (var kvp in streams.ToList())
@@ -430,9 +538,10 @@ public class StreamManager : IDisposable
 
   private class ManagedStream
   {
-    public FileAudioSource Source { get; set; } = null!;
+    public IAudioSource Source { get; set; } = null!;
     public float TargetVolume { get; set; }
     public float CurrentVolume { get; set; }
     public bool IsMuted { get; set; }
+    public DateTime StartTime { get; set; }
   }
 }

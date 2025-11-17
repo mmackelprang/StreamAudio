@@ -11,7 +11,7 @@ namespace StreamAudio.Core.Playback;
 /// Manages audio playback using SoundFlow's playback device and mixer.
 /// This class provides a simple interface for playing audio with mixing capabilities.
 /// </summary>
-public class AudioPlayback : IDisposable
+public class AudioPlayback : IAudioPlayback
 {
   private readonly AudioPlaybackDevice playbackDevice;
   private readonly AudioFormat format;
