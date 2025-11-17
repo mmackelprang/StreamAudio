@@ -11,7 +11,7 @@ public class EnhancedFileAudioSourceTests : IDisposable
   private readonly List<IDisposable> disposables = new();
 
   [Fact]
-  public void Constructor_WithSingleFile_ShouldDefaultToAutoSourceType()
+  public void Constructor_WithSingleFile_ShouldDefaultToManualSourceType()
   {
     // Skip audio tests in headless environment
     if (IsHeadlessEnvironment())
@@ -27,7 +27,7 @@ public class EnhancedFileAudioSourceTests : IDisposable
     disposables.Add(source);
 
     // Assert
-    source.SourceType.Should().Be(SourceType.Auto);
+    source.SourceType.Should().Be(SourceType.Manual);
     source.RepeatCount.Should().Be(1);
   }
 

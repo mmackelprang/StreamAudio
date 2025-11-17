@@ -18,6 +18,7 @@ public class StreamManager : IDisposable
   private float backgroundVolume = 0.3f;
   private bool disposed;
   private bool wasPlaying = false;
+  private readonly Dictionary<string, DateTime> completedAutoStreams = new();
 
   /// <summary>
   /// Occurs when a stream fails during playback.
@@ -455,6 +456,7 @@ public class StreamManager : IDisposable
       return;
 
     var streamsToRemove = new List<string>();
+    var now = DateTime.UtcNow;
 
     foreach (var kvp in streams.ToList())
     {
@@ -472,8 +474,22 @@ public class StreamManager : IDisposable
         // Check if stream has stopped
         if (state == SoundFlow.Enums.PlaybackState.Stopped)
         {
-          streamsToRemove.Add(id);
+          // Track when it completed and delay removal by 500ms to allow fade-outs to complete
+          if (!completedAutoStreams.ContainsKey(id))
+          {
+            completedAutoStreams[id] = now;
+          }
+          else if ((now - completedAutoStreams[id]).TotalMilliseconds >= 500)
+          {
+            streamsToRemove.Add(id);
+            completedAutoStreams.Remove(id);
+          }
           continue;
+        }
+        else
+        {
+          // Stream is playing again, remove from completed tracking
+          completedAutoStreams.Remove(id);
         }
 
         // Check if stream has exceeded max duration

@@ -25,12 +25,13 @@ public class FileAudioSource : IAudioSource
   private int currentPlayCount = 0;
   private SongMetadata? currentlyPlaying;
   private readonly AudioFormat format;
+  private readonly bool isDirectory;
 
   /// <summary>
-  /// Creates a FileAudioSource from a single file (Auto source type by default).
+  /// Creates a FileAudioSource from a single file (Manual source type by default).
   /// </summary>
   public FileAudioSource(string filePath, AudioFormat? format = null, SourceType? sourceType = null)
-    : this(new List<string> { filePath }, format, sourceType ?? SourceType.Auto)
+    : this(new List<string> { filePath }, format, sourceType ?? SourceType.Manual)
   {
   }
 
@@ -63,10 +64,10 @@ public class FileAudioSource : IAudioSource
     if (files.Count == 0)
       throw new InvalidOperationException($"No audio files found in directory: {directoryPath}");
 
-    return new FileAudioSource(files, format, sourceType ?? SourceType.Manual);
+    return new FileAudioSource(files, format, sourceType ?? SourceType.Manual, isDirectory: true);
   }
 
-  private FileAudioSource(List<string> filePaths, AudioFormat? format, SourceType sourceType)
+  private FileAudioSource(List<string> filePaths, AudioFormat? format, SourceType sourceType, bool isDirectory = false)
   {
     if (filePaths == null || filePaths.Count == 0)
       throw new ArgumentException("File paths cannot be null or empty.", nameof(filePaths));
@@ -84,6 +85,7 @@ public class FileAudioSource : IAudioSource
     this.filePaths = filePaths;
     this.SourceType = sourceType;
     this.format = format ?? AudioFormat.DvdHq;
+    this.isDirectory = isDirectory;
 
     // Initialize with first file
     InitializeCurrentFile();
@@ -191,7 +193,7 @@ public class FileAudioSource : IAudioSource
   /// </summary>
   public string Name => filePaths.Count == 1 
     ? Path.GetFileName(filePaths[0]) 
-    : $"Playlist ({filePaths.Count} files)";
+    : isDirectory ? $"Directory ({filePaths.Count} files)" : $"Playlist ({filePaths.Count} files)";
 
   /// <summary>
   /// Gets the audio format.

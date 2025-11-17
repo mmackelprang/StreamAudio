@@ -22,6 +22,10 @@ public class MultiSourceIntegrationTests : IDisposable
     if (IsHeadlessEnvironment())
       return;
 
+    // Skip if espeak is not available
+    if (!IsESpeakAvailable())
+      return;
+
     // Arrange
     using var playback = new AudioPlayback();
     disposables.Add(playback);
@@ -426,6 +430,28 @@ public class MultiSourceIntegrationTests : IDisposable
   {
     return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
+  }
+
+  private bool IsESpeakAvailable()
+  {
+    try
+    {
+      var processInfo = new System.Diagnostics.ProcessStartInfo
+      {
+        FileName = "espeak",
+        Arguments = "--version",
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+      };
+      using var process = System.Diagnostics.Process.Start(processInfo);
+      return process != null;
+    }
+    catch
+    {
+      return false;
+    }
   }
 
   private bool IsEspeakInstalled()
