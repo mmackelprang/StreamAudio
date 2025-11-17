@@ -5,6 +5,7 @@ using StreamAudio.Core.Playback;
 
 namespace StreamAudio.Tests;
 
+[Collection("AudioTests")]
 public class StreamManagerTests : IDisposable
 {
   private const string TestDataPath = "../../../../../testdata";
@@ -478,18 +479,15 @@ public class StreamManagerTests : IDisposable
   {
     foreach (var disposable in disposables)
     {
-      disposable.Dispose();
+      try
+      {
+        disposable?.Dispose();
+      }
+      catch
+      {
+        // Ignore disposal errors for individual resources
+      }
     }
     disposables.Clear();
-
-    // Cleanup audio engine only if it was initialized
-    try
-    {
-      AudioEngineManager.Dispose();
-    }
-    catch
-    {
-      // Ignore cleanup errors
-    }
   }
 }

@@ -11,6 +11,7 @@ public static class AudioEngineManager
 {
   private static AudioEngine? _engine;
   private static readonly object _lock = new();
+  private static bool _isDisposed = false;
 
   /// <summary>
   /// Gets the shared AudioEngine instance, creating it if necessary.
@@ -19,27 +20,56 @@ public static class AudioEngineManager
   {
     get
     {
-      if (_engine == null)
+      lock (_lock)
       {
-        lock (_lock)
+        if (_engine == null && !_isDisposed)
         {
-          _engine ??= new MiniAudioEngine();
+          _engine = new MiniAudioEngine();
+          _isDisposed = false;
         }
       }
-      return _engine;
+      return _engine ?? throw new ObjectDisposedException(nameof(AudioEngineManager));
     }
   }
 
   /// <summary>
   /// Disposes the shared AudioEngine instance.
   /// Should be called when the application is shutting down.
+  /// Safe to call multiple times - subsequent calls are no-ops.
   /// </summary>
   public static void Dispose()
   {
     lock (_lock)
     {
-      _engine?.Dispose();
-      _engine = null;
+      if (_engine != null && !_isDisposed)
+      {
+        try
+        {
+          _engine.Dispose();
+        }
+        catch
+        {
+          // Swallow exceptions during disposal to prevent crashes in cleanup code
+          // This is especially important for tests running in parallel
+        }
+        finally
+        {
+          _engine = null;
+          _isDisposed = true;
+        }
+      }
+    }
+  }
+
+  /// <summary>
+  /// Resets the disposed state, allowing a new engine to be created.
+  /// This is primarily for testing scenarios.
+  /// </summary>
+  internal static void Reset()
+  {
+    lock (_lock)
+    {
+      _isDisposed = false;
     }
   }
 }

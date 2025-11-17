@@ -9,6 +9,7 @@ namespace StreamAudio.Tests;
 /// <summary>
 /// Tests for audio format conversion and mixing behavior.
 /// </summary>
+[Collection("AudioTests")]
 public class AudioMixerTests : IDisposable
 {
   private const string TestDataPath = "../../../../../testdata";

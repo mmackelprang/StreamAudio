@@ -4,6 +4,7 @@ using StreamAudio.Core.Events;
 
 namespace StreamAudio.Tests;
 
+[Collection("AudioTests")]
 public class ErrorHandlingTests : IDisposable
 {
   private const string TestDataPath = "../../../../../testdata";

@@ -116,11 +116,12 @@ public class StreamManager : IDisposable
 
     streams[id] = managedStream;
     playback.AddPlayer(source.Player);
-    playback.SetVolume(source.Player, 0.0f); // Start at 0 for fade-in
+    playback.SetVolume(source.Player, 0.0f); // Start at 0 for fade-in or manual control
 
     if (isPrimary)
     {
-      SetPrimaryStream(id);
+      // Set as primary but don't update volume yet (will be set when Play is called)
+      primaryStreamId = id;
     }
 
     // If we were idle and this is an Auto source that starts playing, fire AudioPlayBegin

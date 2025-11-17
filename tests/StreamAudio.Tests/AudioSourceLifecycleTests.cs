@@ -6,6 +6,7 @@ using SoundFlow.Structs;
 
 namespace StreamAudio.Tests;
 
+[Collection("AudioTests")]
 public class Phase7Tests : IDisposable
 {
   private const string TestDataPath = "../../../../../testdata";
