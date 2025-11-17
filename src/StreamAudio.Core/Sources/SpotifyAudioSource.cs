@@ -281,11 +281,14 @@ public class SpotifyAudioSource : IAudioSource
   /// </summary>
   public async Task PlayTrackAsync(string trackUri)
   {
-    if (!isInitialized || spotify == null)
+    if (!isInitialized)
       throw new InvalidOperationException("Spotify is not initialized");
 
     if (config.UseSimulation)
       return;
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
 
     try
     {
