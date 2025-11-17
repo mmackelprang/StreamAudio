@@ -10,7 +10,7 @@ namespace StreamDemo;
 /// </summary>
 class Program
 {
-  private const string TestDataPath = "../../testdata";
+  private const string TestDataPath = "./testdata";
 
   static void Main(string[] args)
   {

@@ -13,7 +13,7 @@ class Program
     Console.WriteLine();
 
     // Check for test data
-    var testDataPath = Path.Combine("..", "..", "..", "..", "..", "testdata");
+    var testDataPath = Path.Combine(".", "testdata");
     var file100Hz = Path.Combine(testDataPath, "100hz.wav");
     var file200Hz = Path.Combine(testDataPath, "200hz.wav");
 
