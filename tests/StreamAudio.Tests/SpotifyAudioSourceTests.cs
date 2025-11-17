@@ -292,6 +292,128 @@ public class SpotifyAudioSourceTests : IDisposable
   }
 
   [Fact]
+  public async Task SearchTracksAsync_InSimulation_ShouldReturnResults()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+    await source.InitializeAsync();
+
+    // Act
+    var results = await source.SearchTracksAsync("test query");
+
+    // Assert
+    results.Should().NotBeEmpty();
+    results[0].Name.Should().NotBeNullOrWhiteSpace();
+  }
+
+  [Fact]
+  public async Task GetUserPlaylistsAsync_InSimulation_ShouldReturnPlaylists()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+    await source.InitializeAsync();
+
+    // Act
+    var playlists = await source.GetUserPlaylistsAsync();
+
+    // Assert
+    playlists.Should().NotBeEmpty();
+    playlists[0].Name.Should().NotBeNullOrWhiteSpace();
+  }
+
+  [Fact]
+  public async Task PlayPlaylistAsync_InSimulation_ShouldNotThrow()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+    await source.InitializeAsync();
+
+    // Act & Assert
+    await source.PlayPlaylistAsync("spotify:playlist:test");
+  }
+
+  [Fact]
+  public async Task GetRecommendationsAsync_InSimulation_ShouldReturnRecommendations()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+    await source.InitializeAsync();
+
+    // Act
+    var recommendations = await source.GetRecommendationsAsync(new List<string> { "track1", "track2" });
+
+    // Assert
+    recommendations.Should().NotBeEmpty();
+    recommendations[0].Name.Should().NotBeNullOrWhiteSpace();
+  }
+
+  [Fact]
+  public async Task GetSavedTracksAsync_InSimulation_ShouldReturnFavorites()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+    await source.InitializeAsync();
+
+    // Act
+    var saved = await source.GetSavedTracksAsync();
+
+    // Assert
+    saved.Should().NotBeEmpty();
+    saved[0].Name.Should().NotBeNullOrWhiteSpace();
+  }
+
+  [Fact]
+  public async Task SaveTrackAsync_InSimulation_ShouldNotThrow()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+    await source.InitializeAsync();
+
+    // Act & Assert
+    await source.SaveTrackAsync("track123");
+  }
+
+  [Fact]
+  public async Task RemoveTrackAsync_InSimulation_ShouldNotThrow()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+    await source.InitializeAsync();
+
+    // Act & Assert
+    await source.RemoveTrackAsync("track123");
+  }
+
+  [Fact]
+  public async Task SearchTracksAsync_WithoutInitialization_ShouldThrow()
+  {
+    // Arrange
+    var config = new SpotifyConfiguration { UseSimulation = true };
+    var source = new SpotifyAudioSource(config);
+    disposables.Add(source);
+
+    // Act
+    Func<Task> act = async () => await source.SearchTracksAsync("test");
+
+    // Assert
+    await act.Should().ThrowAsync<InvalidOperationException>();
+  }
+
+  [Fact]
   public void Dispose_ShouldCleanupResources()
   {
     // Arrange

@@ -305,6 +305,322 @@ public class SpotifyAudioSource : IAudioSource
     }
   }
 
+  /// <summary>
+  /// Search for tracks on Spotify.
+  /// </summary>
+  public async Task<List<SearchTrackResult>> SearchTracksAsync(string query, int limit = 20)
+  {
+    if (!isInitialized)
+      throw new InvalidOperationException("Spotify is not initialized");
+
+    if (config.UseSimulation)
+    {
+      // Return simulated results
+      return new List<SearchTrackResult>
+      {
+        new SearchTrackResult
+        {
+          Name = "Simulated Track 1",
+          Artist = "Simulated Artist",
+          Album = "Simulated Album",
+          Uri = "spotify:track:sim1",
+          DurationMs = 180000
+        }
+      };
+    }
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
+
+    try
+    {
+      var searchRequest = new SearchRequest(SearchRequest.Types.Track, query)
+      {
+        Market = config.Market,
+        Limit = Math.Min(limit, config.MaxItems)
+      };
+
+      var searchResponse = await spotify.Search.Item(searchRequest);
+      var results = new List<SearchTrackResult>();
+
+      if (searchResponse.Tracks?.Items != null)
+      {
+        foreach (var track in searchResponse.Tracks.Items)
+        {
+          results.Add(new SearchTrackResult
+          {
+            Name = track.Name,
+            Artist = string.Join(", ", track.Artists.Select(a => a.Name)),
+            Album = track.Album.Name,
+            Uri = track.Uri,
+            DurationMs = track.DurationMs,
+            AlbumArtUrl = track.Album.Images.FirstOrDefault()?.Url
+          });
+        }
+      }
+
+      return results;
+    }
+    catch (Exception ex)
+    {
+      throw new InvalidOperationException($"Failed to search tracks: {ex.Message}", ex);
+    }
+  }
+
+  /// <summary>
+  /// Get user's playlists.
+  /// </summary>
+  public async Task<List<PlaylistInfo>> GetUserPlaylistsAsync(int limit = 20)
+  {
+    if (!isInitialized)
+      throw new InvalidOperationException("Spotify is not initialized");
+
+    if (config.UseSimulation)
+    {
+      return new List<PlaylistInfo>
+      {
+        new PlaylistInfo
+        {
+          Name = "Simulated Playlist",
+          Id = "sim_playlist_1",
+          Uri = "spotify:playlist:sim1",
+          TrackCount = 25
+        }
+      };
+    }
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
+
+    try
+    {
+      var playlists = await spotify.Playlists.CurrentUsers(new PlaylistCurrentUsersRequest
+      {
+        Limit = Math.Min(limit, config.MaxItems)
+      });
+
+      var results = new List<PlaylistInfo>();
+      if (playlists.Items != null)
+      {
+        foreach (var playlist in playlists.Items)
+        {
+          results.Add(new PlaylistInfo
+          {
+            Name = playlist.Name ?? "Unknown",
+            Id = playlist.Id ?? "",
+            Uri = playlist.Uri ?? "",
+            TrackCount = playlist.Tracks?.Total ?? 0,
+            ImageUrl = playlist.Images?.FirstOrDefault()?.Url
+          });
+        }
+      }
+
+      return results;
+    }
+    catch (Exception ex)
+    {
+      throw new InvalidOperationException($"Failed to get playlists: {ex.Message}", ex);
+    }
+  }
+
+  /// <summary>
+  /// Play a specific playlist.
+  /// </summary>
+  public async Task PlayPlaylistAsync(string playlistUri)
+  {
+    if (!isInitialized)
+      throw new InvalidOperationException("Spotify is not initialized");
+
+    if (config.UseSimulation)
+      return;
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
+
+    try
+    {
+      var request = new PlayerResumePlaybackRequest
+      {
+        ContextUri = playlistUri
+      };
+
+      await spotify.Player.ResumePlayback(request);
+    }
+    catch (Exception ex)
+    {
+      throw new InvalidOperationException($"Failed to play playlist {playlistUri}: {ex.Message}", ex);
+    }
+  }
+
+  /// <summary>
+  /// Get track recommendations based on seed tracks.
+  /// </summary>
+  public async Task<List<SearchTrackResult>> GetRecommendationsAsync(List<string> seedTrackIds, int limit = 20)
+  {
+    if (!isInitialized)
+      throw new InvalidOperationException("Spotify is not initialized");
+
+    if (config.UseSimulation)
+    {
+      return new List<SearchTrackResult>
+      {
+        new SearchTrackResult
+        {
+          Name = "Recommended Track",
+          Artist = "Recommended Artist",
+          Album = "Recommended Album",
+          Uri = "spotify:track:rec1",
+          DurationMs = 200000
+        }
+      };
+    }
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
+
+    try
+    {
+      var request = new RecommendationsRequest();
+      foreach (var seedId in seedTrackIds.Take(5)) // Spotify allows max 5 seeds
+      {
+        request.SeedTracks.Add(seedId);
+      }
+      request.Limit = Math.Min(limit, config.MaxItems);
+      request.Market = config.Market;
+
+      var recommendations = await spotify.Browse.GetRecommendations(request);
+      var results = new List<SearchTrackResult>();
+
+      foreach (var track in recommendations.Tracks)
+      {
+        results.Add(new SearchTrackResult
+        {
+          Name = track.Name,
+          Artist = string.Join(", ", track.Artists.Select(a => a.Name)),
+          Album = track.Album.Name,
+          Uri = track.Uri,
+          DurationMs = track.DurationMs,
+          AlbumArtUrl = track.Album.Images.FirstOrDefault()?.Url
+        });
+      }
+
+      return results;
+    }
+    catch (Exception ex)
+    {
+      throw new InvalidOperationException($"Failed to get recommendations: {ex.Message}", ex);
+    }
+  }
+
+  /// <summary>
+  /// Get user's saved (favorite) tracks.
+  /// </summary>
+  public async Task<List<SearchTrackResult>> GetSavedTracksAsync(int limit = 20)
+  {
+    if (!isInitialized)
+      throw new InvalidOperationException("Spotify is not initialized");
+
+    if (config.UseSimulation)
+    {
+      return new List<SearchTrackResult>
+      {
+        new SearchTrackResult
+        {
+          Name = "Favorite Track",
+          Artist = "Favorite Artist",
+          Album = "Favorite Album",
+          Uri = "spotify:track:fav1",
+          DurationMs = 220000
+        }
+      };
+    }
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
+
+    try
+    {
+      var saved = await spotify.Library.GetTracks(new LibraryTracksRequest
+      {
+        Limit = Math.Min(limit, config.MaxItems),
+        Market = config.Market
+      });
+
+      var results = new List<SearchTrackResult>();
+      foreach (var item in saved.Items ?? Enumerable.Empty<SavedTrack>())
+      {
+        if (item.Track != null)
+        {
+          results.Add(new SearchTrackResult
+          {
+            Name = item.Track.Name,
+            Artist = string.Join(", ", item.Track.Artists.Select(a => a.Name)),
+            Album = item.Track.Album.Name,
+            Uri = item.Track.Uri,
+            DurationMs = item.Track.DurationMs,
+            AlbumArtUrl = item.Track.Album.Images.FirstOrDefault()?.Url
+          });
+        }
+      }
+
+      return results;
+    }
+    catch (Exception ex)
+    {
+      throw new InvalidOperationException($"Failed to get saved tracks: {ex.Message}", ex);
+    }
+  }
+
+  /// <summary>
+  /// Save (favorite) a track.
+  /// </summary>
+  public async Task SaveTrackAsync(string trackId)
+  {
+    if (!isInitialized)
+      throw new InvalidOperationException("Spotify is not initialized");
+
+    if (config.UseSimulation)
+      return;
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
+
+    try
+    {
+      var request = new LibrarySaveTracksRequest(new List<string> { trackId });
+      await spotify.Library.SaveTracks(request);
+    }
+    catch (Exception ex)
+    {
+      throw new InvalidOperationException($"Failed to save track: {ex.Message}", ex);
+    }
+  }
+
+  /// <summary>
+  /// Remove (unfavorite) a track.
+  /// </summary>
+  public async Task RemoveTrackAsync(string trackId)
+  {
+    if (!isInitialized)
+      throw new InvalidOperationException("Spotify is not initialized");
+
+    if (config.UseSimulation)
+      return;
+
+    if (spotify == null)
+      throw new InvalidOperationException("Spotify client is not available");
+
+    try
+    {
+      var request = new LibraryRemoveTracksRequest(new List<string> { trackId });
+      await spotify.Library.RemoveTracks(request);
+    }
+    catch (Exception ex)
+    {
+      throw new InvalidOperationException($"Failed to remove track: {ex.Message}", ex);
+    }
+  }
+
   private void StartMetadataUpdates()
   {
     metadataUpdateCts = new CancellationTokenSource();
@@ -391,4 +707,29 @@ public class SpotifyAudioSource : IAudioSource
     StopMetadataUpdates();
     GC.SuppressFinalize(this);
   }
+}
+
+/// <summary>
+/// Result of a track search.
+/// </summary>
+public class SearchTrackResult
+{
+  public string Name { get; set; } = "";
+  public string Artist { get; set; } = "";
+  public string Album { get; set; } = "";
+  public string Uri { get; set; } = "";
+  public int DurationMs { get; set; }
+  public string? AlbumArtUrl { get; set; }
+}
+
+/// <summary>
+/// Information about a playlist.
+/// </summary>
+public class PlaylistInfo
+{
+  public string Name { get; set; } = "";
+  public string Id { get; set; } = "";
+  public string Uri { get; set; } = "";
+  public int TrackCount { get; set; }
+  public string? ImageUrl { get; set; }
 }
