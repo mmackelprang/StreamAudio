@@ -133,6 +133,95 @@ public class TtsAudioSourceTests : IDisposable
   }
 
   [Fact]
+  public void GenerateSpeech_WithGoogleEngine_WithApiKey_ShouldNotThrowNotImplemented()
+
+  {
+    // Arrange
+    var config = new TtsConfiguration 
+    { 
+      Engine = "google",
+      GoogleApiKey = "/path/to/credentials.json" // Mock path
+    };
+    var source = new TtsAudioSource("Test text", config: config);
+    disposables.Add(source);
+
+    // Act - We expect it to fail with credential error, not NotImplementedException
+    Action act = () => source.Play();
+
+    // Assert - Should fail with credential issue, not "not implemented"
+    act.Should().ThrowExactly<InvalidOperationException>()
+      .WithMessage("*Failed to generate Google Cloud TTS audio*");
+  }
+
+  [Fact]
+  public void GenerateSpeech_WithAzureEngine_WithCredentials_ShouldNotThrowNotImplemented()
+  {
+    // Arrange
+    var config = new TtsConfiguration 
+    { 
+      Engine = "azure",
+      AzureSpeechKey = "fake_key",
+      AzureSpeechRegion = "westus"
+    };
+    var source = new TtsAudioSource("Test text", config: config);
+    disposables.Add(source);
+
+    // Act - We expect it to fail with auth error, not NotImplementedException
+    Action act = () => source.Play();
+
+    // Assert - Should fail with authentication issue, not "not implemented"
+    act.Should().ThrowExactly<InvalidOperationException>()
+      .WithMessage("*Failed to generate Azure Speech audio*");
+  }
+
+  [Fact]
+  public void GenerateSpeech_WithPiperEngine_WithoutModelPath_ShouldThrowInvalidOperationException()
+  {
+    // Arrange
+    var config = new TtsConfiguration { Engine = "piper" };
+    var source = new TtsAudioSource("Test text", config: config);
+    disposables.Add(source);
+
+    // Act
+    Action act = () => source.Play();
+
+    // Assert
+    act.Should().Throw<InvalidOperationException>()
+      .WithMessage("*PiperModelPath*");
+  }
+
+  [Fact]
+  public void GenerateSpeech_WithPiperEngine_WithInvalidModelPath_ShouldThrowInvalidOperationException()
+  {
+    // Arrange
+    var config = new TtsConfiguration 
+    { 
+      Engine = "piper",
+      PiperModelPath = "/nonexistent/model.onnx"
+    };
+    var source = new TtsAudioSource("Test text", config: config);
+    disposables.Add(source);
+
+    // Act
+    Action act = () => source.Play();
+
+    // Assert
+    act.Should().Throw<InvalidOperationException>()
+      .WithMessage("*model file not found*");
+  }
+
+  [Fact]
+  public void Configuration_PiperProperties_ShouldHaveDefaults()
+  {
+    // Arrange & Act
+    var config = new TtsConfiguration();
+
+    // Assert
+    config.PiperModelPath.Should().BeNull();
+    config.PiperExecutablePath.Should().Be("piper");
+  }
+
+  [Fact]
   public void GenerateSpeech_WithInvalidEngine_ShouldThrowNotSupportedException()
   {
     // Arrange
