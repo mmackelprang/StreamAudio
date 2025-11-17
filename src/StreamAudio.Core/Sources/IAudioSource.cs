@@ -1,5 +1,6 @@
 using SoundFlow.Components;
 using SoundFlow.Structs;
+using StreamAudio.Core.Audio;
 
 namespace StreamAudio.Core.Sources;
 
@@ -58,6 +59,12 @@ public interface IAudioSource : IDisposable
   /// Default is 1 (play once).
   /// </summary>
   int RepeatCount { get; set; }
+
+  /// <summary>
+  /// Gets metadata for the currently playing content, if available.
+  /// Returns null if metadata is not available or not applicable for this source type.
+  /// </summary>
+  SongMetadata? CurrentlyPlaying { get; }
 
   /// <summary>
   /// Gets the underlying SoundPlayer for advanced operations.

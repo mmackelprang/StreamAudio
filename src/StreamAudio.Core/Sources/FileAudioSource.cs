@@ -2,6 +2,7 @@ using SoundFlow.Components;
 using SoundFlow.Interfaces;
 using SoundFlow.Providers;
 using SoundFlow.Structs;
+using StreamAudio.Core.Audio;
 
 namespace StreamAudio.Core.Sources;
 
@@ -19,6 +20,7 @@ public class FileAudioSource : IAudioSource
   private bool disposed;
   private int repeatCount = 1;
   private int currentPlayCount = 0;
+  private SongMetadata? currentlyPlaying;
 
   public FileAudioSource(string filePath, AudioFormat? format = null, SourceType sourceType = SourceType.Manual)
   {
@@ -117,6 +119,13 @@ public class FileAudioSource : IAudioSource
   /// Note: Looping is handled by monitoring playback state and restarting when finished.
   /// </summary>
   public bool Loop { get; set; }
+
+  /// <summary>
+  /// Gets metadata for the currently playing file, if available.
+  /// For file sources, this will be null initially but can be populated
+  /// with file metadata extraction in the future.
+  /// </summary>
+  public SongMetadata? CurrentlyPlaying => currentlyPlaying;
 
   /// <summary>
   /// Gets the underlying SoundPlayer for advanced operations.
