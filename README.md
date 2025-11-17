@@ -338,19 +338,52 @@
     - Test file naming conventions (descriptive names vs phase numbers)
 
 ### Phase 8: System Integration
-* Goals
-  - Integrate external audio stream sources into the system.
-  - Add TTS audio stream input support.
-  - Integrate additional streaming sources (USB audio, network streams, etc.).
-  - Validate end-to-end system functionality.
-* Tasks
-  - Integrate TTS streams (network stream decoding to PCM).
-  - Add USB audio device input stream support.
-  - Implement network audio stream handling.
-  - Add radio stream input capabilities.
-  - Extend tests to cover TTS stream scenarios and external source integration.
+* Remove the Build and Test stops for Windows and macOS
+* Update the IAudioSource input to support a CurrentlyPlaying property which will be populated with metadata regarding the currently playing song whenever availble.  The SongMetaData class will be returned from CurrentlyPlaying and will contain the following fields:
+  - string? Title { get; set; }
+  - string? Artist { get; set; }
+  - string? Album { get; set; }
+  - string? Station { get; set; }
+  - string? Genre { get; set; }
+  - TimeSpan? Duration { get; set; }
+  - TimeSpan? Position { get; set; }
+  - string? AlbumArtUrl { get; set; }
+  - Dictionary<string, string> AdditionalInfo { get; set; } = new();
+* Create the following AudioSources in the project:
+  - TtsAudioSource - base this on my TtsAudioInput object that can be found in another of my GitHub projects: https://github.com/mmackelprang/Radio/tree/main/src/RadioConsole.Api/Modules/Inputs
+    - This should follow the IAudioSource interface and be converted to use the same idioms as the other objects in the current repo.
+	  - Use the same supporting libraries for this implementation as is in TtsAudioInput
+	  - Move support for all 3 TTS engines from the Radio repo to this StreamAudio repo.
+	  - Maintain the same configurability and setup as in the Radio repo.
+	  - Include sufficient tests to verify behavior of the TtsAudioSource
+	  - SongMetaData will be null for TtsAudioInputs.
+	  - Make this AudioSource type default to Auto.
+  - SpotifyAudioSource - base this on my SpotifyInput class that can be found in another of my GitHub projects: https://github.com/mmackelprang/Radio/tree/main/src/RadioConsole.Api/Modules/Inputs
+    - This should follow the IAudioSource interface and be converted to use the same idioms as the other objects in the current repo.
+	  - Move support for all the spotify functions from the SpotifyInput class to the new SpotifyAudioSource class.
+	  - Use the same supporting libraries for the new class.
+	  - Maintain the same configurability and setup as in the Radio repo.
+	  - Include sufficient tests to verify behavior of the SpotifyAudioSource
+	  - Keep SongMetaData up to date as songs play on this AudioSource.  Fill as many fields as possible from Spotify.
+	  - Make this AudioSource type default to Manual.
+  - UsbAudioSource - this will be used to connect to one or more USB devices that will be connected to the Raspberry Pi.  The two currently expected devices are: Radio, Vinyl Record player.
+    - Implement all normal IAudioSource functions.
+	  - Use SoundFlow to access the USB device.
+	  - Create a configuration section in the json config to Create the device and configure its USB port.
+	  - SongMetaData will be null for USB devices.
+	  - Include sufficient tests to verify behavior of the UsbAudioSource
+	  - Make this AudioSource type default to Manual.
+* Update the FileAudioSource class to be able to accept the following:
+  - Single file - in this case, set the AudioSource type to Auto.  Setup the single file as the only file to play.
+  - List of files - in this case, set the AudioSource type to Manual.  Setup all files on the list to play.
+  - Directory - in this case, set the AudioSource to Manual.  Setup all files in the directory to play.
+  - Keep SongMetaData up to date from the file metadata as songs play on this AudioSource.
+* Provide a test app that demonstrates the new audio sources.
+* Update documentation to cover all new features.  Add supporting documentation for setup on the Raspberry Pi for the TTS engines and spotify.
+* Validate end-to-end system functionality.
   - Perform comprehensive integration testing with all audio sources.
   - Validate system performance with multiple concurrent streams.
+
 ### Testing Data & Automation
 * Synthetic Test Tones: Generate short WAV files with 1-second 100Hz and 200Hz sine wave tones included in unit tests.
 * Mixed Output Validation: Automated tests confirm amplitude, sample counts, wave shapes of mixed output match expected composite tone.
