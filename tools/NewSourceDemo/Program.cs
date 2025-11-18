@@ -142,7 +142,7 @@ class Program
     Console.WriteLine();
 
     // Use test files from testdata directory
-    var testFile = "../../../testdata/50hz.wav";
+    var testFile = "./testdata/50hz.wav";
     if (!File.Exists(testFile))
     {
       Console.WriteLine($"Test file not found: {testFile}");
@@ -203,9 +203,9 @@ class Program
     // Use test files from testdata directory
     var testFiles = new[]
     {
-      "../../../testdata/50hz.wav",
-      "../../../testdata/100hz.wav",
-      "../../../testdata/200hz.wav"
+      "./testdata/50hz.wav",
+      "./testdata/100hz.wav",
+      "./testdata/200hz.wav"
     };
 
     // Check if files exist
@@ -253,7 +253,7 @@ class Program
     Console.WriteLine("=== Directory Audio Source Demo ===");
     Console.WriteLine();
 
-    var testDir = "../../../testdata";
+    var testDir = "./testdata";
     if (!Directory.Exists(testDir))
     {
       Console.WriteLine($"Test directory not found: {testDir}");
