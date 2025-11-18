@@ -3,6 +3,7 @@ using SoundFlow.Interfaces;
 using SoundFlow.Providers;
 using SoundFlow.Structs;
 using StreamAudio.Core.Audio;
+using StreamAudio.Core.History;
 using TagLib;
 
 namespace StreamAudio.Core.Sources;
@@ -26,6 +27,7 @@ public class FileAudioSource : IAudioSource
   private SongMetadata? currentlyPlaying;
   private readonly AudioFormat format;
   private readonly bool isDirectory;
+  private readonly MetadataHistoryManager? historyManager;
 
   /// <summary>
   /// Creates a FileAudioSource from a single file (Manual source type by default).
@@ -86,6 +88,15 @@ public class FileAudioSource : IAudioSource
     this.SourceType = sourceType;
     this.format = format ?? AudioFormat.DvdHq;
     this.isDirectory = isDirectory;
+
+    // Initialize metadata history manager for Manual sources
+    if (sourceType == SourceType.Manual)
+    {
+      var sourceName = filePaths.Count == 1 
+        ? Path.GetFileName(filePaths[0]) 
+        : isDirectory ? $"Directory ({filePaths.Count} files)" : $"Playlist ({filePaths.Count} files)";
+      historyManager = new MetadataHistoryManager(sourceName, true);
+    }
 
     // Initialize with first file
     InitializeCurrentFile();
@@ -185,6 +196,12 @@ public class FileAudioSource : IAudioSource
       };
       currentlyPlaying.AdditionalInfo["FilePath"] = filePath;
       currentlyPlaying.AdditionalInfo["FileName"] = Path.GetFileName(filePath);
+    }
+
+    // Record metadata history for Manual sources
+    if (historyManager != null && currentlyPlaying != null)
+    {
+      _ = historyManager.RecordMetadataAsync(currentlyPlaying);
     }
   }
 

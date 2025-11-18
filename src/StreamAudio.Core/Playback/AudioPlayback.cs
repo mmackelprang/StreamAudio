@@ -4,6 +4,7 @@ using SoundFlow.Structs;
 using SoundFlow.Enums;
 using StreamAudio.Core.Platform;
 using StreamAudio.Core.Events;
+using StreamAudio.Core.Configuration;
 
 namespace StreamAudio.Core.Playback;
 
@@ -39,6 +40,10 @@ public class AudioPlayback : IAudioPlayback
     var engine = AudioEngineManager.Engine;
     playbackDevice = engine.InitializePlaybackDevice(null, this.format);
     playbackDevice.Start();
+    
+    ConfigurationManager.Instance.Logger.Information(
+      "AudioPlayback initialized with format: {SampleRate}Hz, {Channels} channels",
+      this.format.SampleRate, this.format.Channels);
   }
 
   /// <summary>

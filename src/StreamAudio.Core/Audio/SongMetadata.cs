@@ -27,6 +27,16 @@ public class SongMetadata
   public string? Station { get; set; }
 
   /// <summary>
+  /// Gets or sets the radio band (e.g., "FM", "AM", "SW" for radio sources).
+  /// </summary>
+  public string? Band { get; set; }
+
+  /// <summary>
+  /// Gets or sets the frequency in Hz (for radio sources).
+  /// </summary>
+  public int? FrequencyHz { get; set; }
+
+  /// <summary>
   /// Gets or sets the genre.
   /// </summary>
   public string? Genre { get; set; }
@@ -63,6 +73,8 @@ public class SongMetadata
       Artist = this.Artist,
       Album = this.Album,
       Station = this.Station,
+      Band = this.Band,
+      FrequencyHz = this.FrequencyHz,
       Genre = this.Genre,
       Duration = this.Duration,
       Position = this.Position,
