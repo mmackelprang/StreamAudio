@@ -97,7 +97,9 @@ public class FFTAudioPlayback : IAudioPlayback
   /// <summary>
   /// Occurs when the playback device encounters an error.
   /// </summary>
+#pragma warning disable CS0067 // Event is never used - reserved for future error handling
   public event EventHandler<DeviceEventArgs>? DeviceError;
+#pragma warning restore CS0067
 
   /// <summary>
   /// Occurs when the playback device is successfully recovered.

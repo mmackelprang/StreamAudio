@@ -185,48 +185,51 @@ public class JsonFileStorage : IStorage
     ConfigurationManager.Instance.Logger.Information("Replication complete: {TotalKeys} keys copied", totalKeys);
   }
 
-  public async Task<string> BackupAsync()
+  public Task<string> BackupAsync()
   {
-    var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-    var backupFileName = $"{timestamp}_JsonFileStorage.backup.zip";
-    var backupPath = Path.Combine(_backupDir, backupFileName);
-
-    ConfigurationManager.Instance.Logger.Information("Creating backup at {BackupPath}", backupPath);
-
-    // Simple backup: create a zip of all JSON files
-    var files = Directory.GetFiles(_storageDir, "*.json");
-    if (files.Length == 0)
+    return Task.Run(() =>
     {
-      throw new InvalidOperationException("No data to backup");
-    }
+      var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+      var backupFileName = $"{timestamp}_JsonFileStorage.backup.zip";
+      var backupPath = Path.Combine(_backupDir, backupFileName);
 
-    // Create a temporary directory for the backup
-    var tempDir = Path.Combine(Path.GetTempPath(), $"streamaudio_backup_{timestamp}");
-    Directory.CreateDirectory(tempDir);
+      ConfigurationManager.Instance.Logger.Information("Creating backup at {BackupPath}", backupPath);
 
-    try
-    {
-      // Copy all files to temp directory
-      foreach (var file in files)
+      // Simple backup: create a zip of all JSON files
+      var files = Directory.GetFiles(_storageDir, "*.json");
+      if (files.Length == 0)
       {
-        var fileName = Path.GetFileName(file);
-        File.Copy(file, Path.Combine(tempDir, fileName), true);
+        throw new InvalidOperationException("No data to backup");
       }
 
-      // Create zip file
-      System.IO.Compression.ZipFile.CreateFromDirectory(tempDir, backupPath);
+      // Create a temporary directory for the backup
+      var tempDir = Path.Combine(Path.GetTempPath(), $"streamaudio_backup_{timestamp}");
+      Directory.CreateDirectory(tempDir);
 
-      ConfigurationManager.Instance.Logger.Information("Backup created successfully: {BackupPath}", backupPath);
-      return backupPath;
-    }
-    finally
-    {
-      // Clean up temp directory
-      if (Directory.Exists(tempDir))
+      try
       {
-        Directory.Delete(tempDir, true);
+        // Copy all files to temp directory
+        foreach (var file in files)
+        {
+          var fileName = Path.GetFileName(file);
+          File.Copy(file, Path.Combine(tempDir, fileName), true);
+        }
+
+        // Create zip file
+        System.IO.Compression.ZipFile.CreateFromDirectory(tempDir, backupPath);
+
+        ConfigurationManager.Instance.Logger.Information("Backup created successfully: {BackupPath}", backupPath);
+        return backupPath;
       }
-    }
+      finally
+      {
+        // Clean up temp directory
+        if (Directory.Exists(tempDir))
+        {
+          Directory.Delete(tempDir, true);
+        }
+      }
+    });
   }
 
   public async Task RestoreAsync(string backupPath)

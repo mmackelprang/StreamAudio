@@ -216,7 +216,7 @@ public class DeviceManager
     // Parse TTS configuration
     var ttsConfig = new TtsConfiguration
     {
-      Engine = GetConfigValue(config.TtsConfig, "Engine", "espeak"),
+      Engine = GetConfigValue(config.TtsConfig, "Engine", "espeak") ?? "espeak",
       Voice = GetConfigValue(config.TtsConfig, "Voice", null),
       Rate = double.TryParse(GetConfigValue(config.TtsConfig, "Rate", "1.0"), out var rate) ? rate : 1.0,
       Pitch = double.TryParse(GetConfigValue(config.TtsConfig, "Pitch", "0.0"), out var pitch) ? pitch : 0.0,
@@ -263,7 +263,7 @@ public class DeviceManager
       "Creating file source from configuration: {ConfigId}", configId);
 
     // Parse file source configuration
-    var paths = GetConfigValue(config.Configuration, "Paths", "");
+    var paths = GetConfigValue(config.Configuration, "Paths", "") ?? "";
     var pathList = paths.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList();
 
     if (pathList.Count == 0)
@@ -304,8 +304,8 @@ public class DeviceManager
       ClientId = GetConfigValue(config.Configuration, "ClientId", null),
       ClientSecret = GetConfigValue(config.Configuration, "ClientSecret", null),
       RefreshToken = GetConfigValue(config.Configuration, "RefreshToken", null),
-      RedirectUri = GetConfigValue(config.Configuration, "RedirectUri", "http://localhost:5000/callback"),
-      Market = GetConfigValue(config.Configuration, "Market", "US")
+      RedirectUri = GetConfigValue(config.Configuration, "RedirectUri", "http://localhost:5000/callback") ?? "http://localhost:5000/callback",
+      Market = GetConfigValue(config.Configuration, "Market", "US") ?? "US"
     };
 
     var source = new SpotifyAudioSource(spotifyConfig);
@@ -332,7 +332,7 @@ public class DeviceManager
     var usbConfig = new UsbAudioConfiguration
     {
       DeviceNumber = int.TryParse(GetConfigValue(config.Configuration, "DeviceNumber", "-1"), out var devNum) ? devNum : -1,
-      DeviceName = GetConfigValue(config.Configuration, "DeviceName", "USB Audio Device"),
+      DeviceName = GetConfigValue(config.Configuration, "DeviceName", "USB Audio Device") ?? "USB Audio Device",
       SampleRate = int.TryParse(GetConfigValue(config.Configuration, "SampleRate", "44100"), out var sr) ? sr : 44100,
       Channels = int.TryParse(GetConfigValue(config.Configuration, "Channels", "2"), out var ch) ? ch : 2
     };
@@ -359,7 +359,7 @@ public class DeviceManager
     }
   }
 
-  private static string GetConfigValue(Dictionary<string, string> config, string key, string defaultValue)
+  private static string? GetConfigValue(Dictionary<string, string> config, string key, string? defaultValue)
   {
     return config.TryGetValue(key, out var value) ? value : defaultValue;
   }

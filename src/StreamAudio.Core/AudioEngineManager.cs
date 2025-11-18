@@ -65,7 +65,7 @@ public static class AudioEngineManager
   /// Resets the disposed state, allowing a new engine to be created.
   /// This is primarily for testing scenarios.
   /// </summary>
-  internal static void Reset()
+  public static void Reset()
   {
     lock (_lock)
     {

@@ -42,7 +42,7 @@ public class DeviceManagerTests : IDisposable
   }
 
   [Fact]
-  public async Task DeviceManager_Should_Initialize_Successfully()
+  public void DeviceManager_Should_Initialize_Successfully()
   {
     // Act
     var manager = new DeviceManager();
