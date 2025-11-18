@@ -1,6 +1,7 @@
 using SoundFlow.Components;
 using StreamAudio.Core.Sources;
 using StreamAudio.Core.Events;
+using StreamAudio.Core.Configuration;
 using System.Timers;
 
 namespace StreamAudio.Core.Playback;
@@ -47,6 +48,9 @@ public class StreamManager : IDisposable
   public StreamManager(IAudioPlayback playback)
   {
     this.playback = playback ?? throw new ArgumentNullException(nameof(playback));
+    
+    ConfigurationManager.Instance.Logger.Information(
+      "StreamManager initialized with playback device");
     
     // Set up a timer to monitor Auto sources
     monitorTimer = new System.Timers.Timer(100); // Check every 100ms
@@ -119,6 +123,10 @@ public class StreamManager : IDisposable
     playback.AddPlayer(source.Player);
     playback.SetVolume(source.Player, 0.0f); // Start at 0 for fade-in or manual control
 
+    ConfigurationManager.Instance.Logger.Information(
+      "Added audio source: {Id} ({SourceName}, Type: {SourceType}, Primary: {IsPrimary})",
+      id, source.Name, source.SourceType, isPrimary);
+
     if (isPrimary)
     {
       // Set as primary but don't update volume yet (will be set when Play is called)
@@ -160,6 +168,10 @@ public class StreamManager : IDisposable
   {
     playback.RemovePlayer(managedStream.Source.Player);
     streams.Remove(id);
+
+    ConfigurationManager.Instance.Logger.Information(
+      "Removed audio source: {Id} ({SourceName})", 
+      id, managedStream.Source.Name);
 
     // If we removed the primary stream, clear the primary ID
     if (primaryStreamId == id)
