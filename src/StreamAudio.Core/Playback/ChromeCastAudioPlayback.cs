@@ -395,7 +395,25 @@ public class ChromeCastAudioPlayback : IAudioPlayback
     ConfigurationManager.Instance.Logger.Information(
       "Stopping ChromeCast playback: {DeviceName}", deviceName);
 
-    _ = StopAsync();
+    try
+    {
+      // Wait for stop to complete synchronously to avoid race conditions with Dispose
+      StopAsync().GetAwaiter().GetResult();
+    }
+    catch (Exception ex)
+    {
+      // Suppress IO exceptions that occur when connection is already closed
+      if (ex is IOException || ex.InnerException is System.Net.Sockets.SocketException)
+      {
+        ConfigurationManager.Instance.Logger.Debug(ex,
+          "Connection already closed while stopping ChromeCast playback");
+      }
+      else
+      {
+        ConfigurationManager.Instance.Logger.Warning(ex,
+          "Error stopping ChromeCast playback");
+      }
+    }
   }
 
   /// <summary>
@@ -414,6 +432,13 @@ public class ChromeCastAudioPlayback : IAudioPlayback
         await mediaChannel.StopAsync();
         currentMediaSessionId = null;
       }
+    }
+    catch (IOException ioEx) when (ioEx.InnerException is System.Net.Sockets.SocketException)
+    {
+      // Connection was already closed - this is expected during shutdown
+      ConfigurationManager.Instance.Logger.Debug(
+        "Connection closed while stopping ChromeCast playback (expected during shutdown)");
+      currentMediaSessionId = null;
     }
     catch (Exception ex)
     {
