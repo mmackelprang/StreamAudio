@@ -2,6 +2,7 @@ using SpotifyAPI.Web;
 using SoundFlow.Components;
 using SoundFlow.Structs;
 using StreamAudio.Core.Audio;
+using StreamAudio.Core.History;
 
 namespace StreamAudio.Core.Sources;
 
@@ -62,11 +63,15 @@ public class SpotifyAudioSource : IAudioSource
   private CancellationTokenSource? metadataUpdateCts;
   private Task? metadataUpdateTask;
   private readonly AudioFormat format;
+  private readonly MetadataHistoryManager historyManager;
 
   public SpotifyAudioSource(SpotifyConfiguration config, AudioFormat? format = null)
   {
     this.config = config ?? throw new ArgumentNullException(nameof(config));
     this.format = format ?? AudioFormat.DvdHq;
+    
+    // Initialize metadata history manager (Spotify is Manual source type)
+    historyManager = new MetadataHistoryManager("Spotify", true);
   }
 
   /// <summary>
@@ -690,6 +695,9 @@ public class SpotifyAudioSource : IAudioSource
         currentMetadata.AdditionalInfo["SpotifyUri"] = track.Uri;
         currentMetadata.AdditionalInfo["TrackId"] = track.Id;
         currentMetadata.AdditionalInfo["IsPlayable"] = track.IsPlayable.ToString();
+
+        // Record metadata history
+        await historyManager.RecordMetadataAsync(currentMetadata);
       }
     }
     catch
