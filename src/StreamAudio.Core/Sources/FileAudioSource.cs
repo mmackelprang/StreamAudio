@@ -111,7 +111,7 @@ public class FileAudioSource : IAudioSource
         currentPlayCount++;
         
         // Check if we should repeat based on RepeatCount
-        if (RepeatCount == 0 || currentPlayCount < RepeatCount)
+        if (RepeatCount == 0 || currentPlayCount <= RepeatCount)
         {
           // Check if we should advance to next file
           if (filePaths.Count > 1)
