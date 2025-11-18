@@ -486,3 +486,11 @@ $RECYCLE.BIN/
 # Test data files
 testdata/*.wav
 testdata/*.mp3
+
+# StreamAudio runtime directories
+logs/
+storage/
+backup/
+*.db
+*.db-shm
+*.db-wal
