@@ -92,6 +92,11 @@ public class StreamManager : IDisposable
   public int StreamCount => streams.Count;
 
   /// <summary>
+  /// Gets the audio format being used by the playback device.
+  /// </summary>
+  public SoundFlow.Structs.AudioFormat Format => playback.Format;
+
+  /// <summary>
   /// Adds a new audio source to the manager.
   /// </summary>
   /// <param name="id">Unique identifier for this stream.</param>

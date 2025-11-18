@@ -48,3 +48,6 @@ app.MapControllers();
 config.Logger.Information("StreamAudio API started. Swagger UI available at http://localhost:5000");
 app.Run();
 
+// Make the implicit Program class accessible for testing
+public partial class Program { }
+
