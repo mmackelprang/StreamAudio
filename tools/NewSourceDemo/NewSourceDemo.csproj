@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="SoundFlow" Version="1.2.1" />
+    <PackageReference Include="Spectre.Console" Version="0.54.0" />
   </ItemGroup>
 
 </Project>
