@@ -107,8 +107,10 @@ public class FileAudioSource : IAudioSource
     {
       if (Loop && player != null && player.State == SoundFlow.Enums.PlaybackState.Stopped && !disposed)
       {
-        // Check if we should repeat based on RepeatCount
+        // Increment play count when a playback completes
         currentPlayCount++;
+        
+        // Check if we should repeat based on RepeatCount
         if (RepeatCount == 0 || currentPlayCount < RepeatCount)
         {
           // Check if we should advance to next file
@@ -272,7 +274,7 @@ public class FileAudioSource : IAudioSource
   /// </summary>
   public void Play()
   {
-    currentPlayCount = 0; // Reset count when explicitly played
+    currentPlayCount = 1; // First play counts as 1
     player?.Play();
   }
 
