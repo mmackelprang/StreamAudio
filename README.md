@@ -416,6 +416,67 @@
   - ✅ **Raspberry Pi Documentation**: Setup instructions for TTS and Spotify
   - ⚠️ **Note**: Comprehensive unit tests and integration tests remain as future enhancements
 
+### Phase 9: REST API Preparation and Implementation
+* Prepare the StreamAudio project to support a REST API and work with a Blazor Web UI.  There will be several steps to this project:
+  - In the appsettings.json, create a config item called `RootDir`  - this will default to the solution directory.  Print clear warnings if appsettings is not found at startup.  Print where the app is looking and where it expects the file to be.
+  - Add logging to the project.  Use the logging format as specified in the instructions file.  The logging directory should be `RootDir/logs`
+    - Go through the existing code and add log entries for meaningful events.
+  - Create an IStorage interface and implementation for permanent storage.  The interface will look something like this:
+     - Task SaveAsync(string table, string key, T data) - Save Data To Storage table from the named table
+     - Task<T?> LoadAsync(string table, string key) - Load Data From Storage specified table
+     - Task<bool> ExistsAsync(string table, string key) - Check if data exists in table
+     - Task DeleteAsync(string table, string key) - Delete data from storage table
+     - Task<IEnumerable<string>> GetKeysAsync(string table) - Get all keys from storage table
+     - Task<IEnumerable<string>> GetAllAsync() - Get all tables from storage.
+     - Task<IEnumerable<string>> GetTablesAsync() - Get all tables from storage.
+     - Task<IStorage> ReplicateStorageAsync() - Copy all data from the current implementation to the target Storage.
+     - Task BackupAsync() - Create a backup named <DateStamp><StorageType.backup in the `RootDir/backup` folder.
+     - Task<IStorage> RestoreAsync(string) - Restore an IStorage from the specified backup.
+  - Create two implementations of IStorage - JSON file storage and SQLite.  Create a StorageManager class that defaults to JSON.  The default file storage location for both implementations should be set to 'RootDir\storage`
+    - Create extensive tests for the IStorage interface verifying functionality.
+    - Update documentation on how to use these new interfaces.
+    - The choice of which storage type to use will be made from appsettings.json.
+    - Document how to move data back and forth between the JSON files and the SQLite db.  Create a command line example in the tools directory showing proper use of the ReplicateStorageAsync, BackupAsync and RestoreAsync functions.
+    - Ensure that all storage files are excluded from git.
+	- Provide a special table called [SECRETS] that will be used for a simple secrets manager.
+	  - When loading any Key from the IStorage interface, if the key value has the form `[SECRET:SecretKey]`, replace the value by doing a LoadAsync("[SECRET]", SecretKey)
+	  - This is not a super secure secrets manager, but it forces us to use an interface so when we move to one in the future it will be easier.
+	  - Add tests around the new secrets functions.
+  - Add two new parameters to the SongMetaData class to support radio play:
+    - string? Band { get; set; }
+    - int? FrequencyHz { get; set; } 
+  - Update the FileAudioPlayback and SpotifyAudioPlayback classes to store each new SongMetaData with a timestamp when they are in Manual mode.
+  - We need to implement a new IAudioPlayback device that supports streaming to a Google Cast device.  Store any configuration in the storage defined above, and use the secrets for any tokens or keys needed.
+    - Add test coverage around this new GoogleCastPlayback device.  
+  - We need to create a DeviceManager that performs the following things:
+    - Provides a list of devices that be selected for audio intput to the system.  In addition to the hardware devices on the computer, be sure to add the following IAudioSource objects:
+	    - FileAudioSouce that can be configured by the user in the UI (see below). Configuration for this should be stored in the Storage defined above.
+	    - SpotifyAudioSource that can be configured by the user in the UI (see below). Configuration for this should be stored in the Storage defined above, using the secrets facility to obfuscate any keys or tokens needed to use.
+	    - UsbAudioSource for Vinyl Record Player.  Configuration for which USB port should be defined in the storage defined above.
+	    - UsbAudioSource for multi-band Radio. Configuration for which USB port should be defined in the storage defined above.
+    - Provide a list of devices that can be selected for audio output from the system.  In addition to the devices in the computer, be sure to add the following IAudioPlayback object:
+	    - ChromeCastAudioPlayback - when implenting this playback device, include the ability to send any song metadata available as audio is streaming.  If there is metadata available in the SongMetaData class that is compatible with the Google Cast protocol, include that metadata.
+	- Any of these AudioSource or AudioPlayback devices can be marked as not-visible, so that they don't appear in the list of allowed available inputs.
+	- Provides a simple interface to add "Auto" AudioSources specifically:
+	  - Short audio files for alerting / doorbell, phone ring, alarm type functionality - TtsAudioSource creation and addition to stream. - FileAudioSource.
+	  - TTS audio for sending system messages / alerts.  Allow setting voice, engine, speed, etc. - TtsAudioSource creation and addition to stream.
+	- Add tests around the DeviceManager.
+* Before buiding the Web UI, we need to create the REST API for the web UI.  This rest API should support the following:
+  - Manage configuration and state data with StorageManger.  This should allow access to all the methods in IStorage.
+  - Manage configuration of the StreamManager:
+    - setting up the AudioSource or multiple AudioSources, AudioPlayback devices
+	  - adjust volume on the current AudioPlayback
+	  - create and add to the stream new "Auto" AudioSource objects.
+    - Starting stoping all streams stream in general
+	  - Controlling the volume of the current Playback device
+	  - For Each Stream: control muting, unmuting, pausing, start, stop, setting volume.
+  - Provide extensive tests and some test examples showing usage of the REST API.
+  - Create Swagger docs for the REST API and document how to get to them via a browser.
+
+### Phase 10: Blazor Web UI Creation
+* Create a Blazor Web UI that works with the REST API for this project to provide complete management of the streaming system.  This will be a Material 3 design.
+* TODO - Fill out acceptance criteria for the Web UI here.
+
 ### Testing Data & Automation
 * Synthetic Test Tones: Generate short WAV files with 1-second 100Hz and 200Hz sine wave tones included in unit tests.
 * Mixed Output Validation: Automated tests confirm amplitude, sample counts, wave shapes of mixed output match expected composite tone.
