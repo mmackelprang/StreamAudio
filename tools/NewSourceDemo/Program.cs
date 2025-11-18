@@ -2,6 +2,7 @@ using StreamAudio.Core;
 using StreamAudio.Core.Audio;
 using StreamAudio.Core.Playback;
 using StreamAudio.Core.Sources;
+using StreamAudio.Core.Platform;
 
 namespace NewSourceDemo;
 
@@ -20,13 +21,12 @@ class Program
     Console.WriteLine("=============================================");
     Console.WriteLine();
 
-    // Check if we're in a headless environment
-    var isHeadless = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) &&
-                     !OperatingSystem.IsWindows();
+    // Check if audio playback is available
+    var hasAudioPlayback = PlatformInfo.HasAudioPlayback;
 
-    if (isHeadless)
+    if (!hasAudioPlayback)
     {
-      Console.WriteLine("Running in headless mode - audio playback will be simulated");
+      Console.WriteLine("No audio playback devices detected - audio playback will be simulated");
       Console.WriteLine();
     }
 
@@ -49,22 +49,22 @@ class Program
       switch (choice)
       {
         case "1":
-          await DemoTtsAudioSource(isHeadless);
+          await DemoTtsAudioSource(hasAudioPlayback);
           break;
         case "2":
-          DemoSingleFileAudioSource(isHeadless);
+          DemoSingleFileAudioSource(hasAudioPlayback);
           break;
         case "3":
-          DemoMultipleFilesAudioSource(isHeadless);
+          DemoMultipleFilesAudioSource(hasAudioPlayback);
           break;
         case "4":
-          DemoDirectoryAudioSource(isHeadless);
+          DemoDirectoryAudioSource(hasAudioPlayback);
           break;
         case "5":
           await DemoSpotifyAudioSource();
           break;
         case "6":
-          DemoUsbAudioSource(isHeadless);
+          DemoUsbAudioSource(hasAudioPlayback);
           break;
         case "0":
           exit = true;
@@ -78,7 +78,7 @@ class Program
     Console.WriteLine("\nDemo completed!");
   }
 
-  static async Task DemoTtsAudioSource(bool isHeadless)
+  static async Task DemoTtsAudioSource(bool hasAudioPlayback)
   {
     Console.WriteLine("=== Text-to-Speech Audio Source Demo ===");
     Console.WriteLine();
@@ -113,7 +113,7 @@ class Program
       Console.WriteLine($"Channels: {ttsSource.Channels}");
       Console.WriteLine();
 
-      if (!isHeadless)
+      if (hasAudioPlayback)
       {
         Console.WriteLine("Playing TTS audio...");
         ttsSource.Play();
@@ -136,7 +136,7 @@ class Program
     }
   }
 
-  static void DemoSingleFileAudioSource(bool isHeadless)
+  static void DemoSingleFileAudioSource(bool hasAudioPlayback)
   {
     Console.WriteLine("=== Single File Audio Source Demo ===");
     Console.WriteLine();
@@ -176,7 +176,7 @@ class Program
         }
       }
 
-      if (!isHeadless)
+      if (hasAudioPlayback)
       {
         Console.WriteLine("\nPlaying audio for 2 seconds...");
         source.Play();
@@ -195,7 +195,7 @@ class Program
     }
   }
 
-  static void DemoMultipleFilesAudioSource(bool isHeadless)
+  static void DemoMultipleFilesAudioSource(bool hasAudioPlayback)
   {
     Console.WriteLine("=== Multiple Files Audio Source Demo ===");
     Console.WriteLine();
@@ -229,7 +229,7 @@ class Program
         Console.WriteLine($"  - {Path.GetFileName(file)}");
       }
 
-      if (!isHeadless)
+      if (hasAudioPlayback)
       {
         Console.WriteLine("\nPlaying first file for 2 seconds...");
         source.Play();
@@ -248,7 +248,7 @@ class Program
     }
   }
 
-  static void DemoDirectoryAudioSource(bool isHeadless)
+  static void DemoDirectoryAudioSource(bool hasAudioPlayback)
   {
     Console.WriteLine("=== Directory Audio Source Demo ===");
     Console.WriteLine();
@@ -268,7 +268,7 @@ class Program
       Console.WriteLine($"Source: {source.Name}");
       Console.WriteLine($"Type: {source.SourceType} (directory defaults to Manual)");
 
-      if (!isHeadless)
+      if (hasAudioPlayback)
       {
         Console.WriteLine("\nPlaying first file for 2 seconds...");
         source.Play();
@@ -349,7 +349,7 @@ class Program
     }
   }
 
-  static void DemoUsbAudioSource(bool isHeadless)
+  static void DemoUsbAudioSource(bool hasAudioPlayback)
   {
     Console.WriteLine("=== USB Audio Source Demo ===");
     Console.WriteLine();
@@ -374,7 +374,7 @@ class Program
       Console.WriteLine($"Sample Rate: {source.SampleRate} Hz");
       Console.WriteLine($"Channels: {source.Channels}");
 
-      if (!isHeadless)
+      if (hasAudioPlayback)
       {
         Console.WriteLine("\nAttempting to start capture...");
         Console.WriteLine("(This will fail if no USB audio device is available)");

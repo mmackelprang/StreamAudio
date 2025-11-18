@@ -64,10 +64,10 @@ class Program
       Console.WriteLine("Connecting to ChromeCast device...");
       using var chromecast = new ChromeCastAudioPlayback(selectedDevice.FriendlyName, selectedDevice.Id);
 
-      // Wait for connection
-      await Task.Delay(3000);
+      // Wait for connection with timeout
+      var connected = await chromecast.WaitForConnectionAsync(TimeSpan.FromSeconds(10));
 
-      if (!chromecast.IsDeviceHealthy())
+      if (!connected)
       {
         Console.WriteLine("❌ Failed to connect to device.");
         return;
