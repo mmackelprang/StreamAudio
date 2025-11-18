@@ -105,28 +105,24 @@ public class FileAudioSource : IAudioSource
     loopTimer = new System.Timers.Timer(100); // Check every 100ms
     loopTimer.Elapsed += (sender, e) =>
     {
-      if (Loop && player != null && player.State == SoundFlow.Enums.PlaybackState.Stopped && !disposed)
+      // Check if looping/repeating is enabled (Loop = true OR RepeatCount > 1 OR RepeatCount = 0 for infinite)
+      bool shouldLoop = Loop || RepeatCount > 1 || RepeatCount == 0;
+      
+      if (shouldLoop && player != null && player.State == SoundFlow.Enums.PlaybackState.Stopped && !disposed)
       {
-        // Increment play count when a playback completes
-        currentPlayCount++;
-        
         // Check if we should repeat based on RepeatCount
-        if (RepeatCount == 0 || currentPlayCount <= RepeatCount)
+        // RepeatCount = 0 means infinite, RepeatCount = 1 means play once (no repeat)
+        bool shouldContinue = (RepeatCount == 0) || (currentPlayCount < RepeatCount);
+        
+        if (shouldContinue)
         {
+          // Increment play count when starting a new iteration
+          currentPlayCount++;
+          
           // Check if we should advance to next file
           if (filePaths.Count > 1)
           {
             currentFileIndex = (currentFileIndex + 1) % filePaths.Count;
-            if (currentFileIndex == 0)
-            {
-              // Completed all files, check repeat count
-              if (RepeatCount != 0 && currentPlayCount >= RepeatCount)
-              {
-                // Stop the timer and ensure we're in stopped state
-                loopTimer?.Stop();
-                return; // Done repeating
-              }
-            }
             InitializeCurrentFile();
           }
           else
@@ -283,7 +279,11 @@ public class FileAudioSource : IAudioSource
   /// </summary>
   public void Play()
   {
-    currentPlayCount = 1; // First play counts as 1
+    // Initialize play count to 0 if starting fresh (first play doesn't count as a repeat)
+    if (currentPlayCount == 0)
+    {
+      currentPlayCount = 1;
+    }
     player?.Play();
   }
 
