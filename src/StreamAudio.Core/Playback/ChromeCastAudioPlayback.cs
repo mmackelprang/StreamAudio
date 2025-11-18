@@ -312,7 +312,7 @@ public class ChromeCastAudioPlayback : IAudioPlayback
       {
         ContentId = mediaUrl,
         ContentType = contentType,
-        Metadata = castMetadata
+        Metadata = castMetadata! // GoogleCast library accepts null metadata, but lacks nullable annotation
       };
 
       var response = await mediaChannel.LoadAsync(mediaInfo);

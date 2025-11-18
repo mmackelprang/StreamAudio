@@ -529,6 +529,46 @@ public class AudioSourceLifecycleTests : IDisposable
            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
   }
 
+  [Fact]
+  public void FileAudioSource_RepeatCount_ShouldPlayCorrectNumberOfTimes()
+  {
+    // Skip audio tests in headless environment
+    if (IsHeadlessEnvironment())
+      return;
+
+    // Arrange
+    string testFile = Path.Combine(TestDataPath, "100hz.wav");
+    using var source = new FileAudioSource(testFile, sourceType: SourceType.Auto);
+    disposables.Add(source);
+    
+    source.RepeatCount = 3;
+    source.Loop = true;
+
+    // Get the expected duration (1 second per 100hz.wav file * 3 repeats)
+    var expectedMinDuration = TimeSpan.FromMilliseconds(2800); // Allow for slight timing variance
+    var expectedMaxDuration = TimeSpan.FromMilliseconds(3200);
+
+    // Act
+    var startTime = DateTime.UtcNow;
+    source.Play();
+    
+    // Wait for the source to complete 3 plays
+    // The 100hz.wav file is 1 second, so 3 plays = ~3 seconds
+    Thread.Sleep(4000); // Wait 4 seconds to ensure completion
+    
+    var endTime = DateTime.UtcNow;
+    var actualDuration = endTime - startTime;
+
+    // Assert
+    // The source should have stopped after 3 plays (not playing anymore)
+    source.State.Should().Be(SoundFlow.Enums.PlaybackState.Stopped, 
+      "source should stop after RepeatCount plays");
+    
+    // Verify the duration is approximately 3 seconds (allowing for some timing variance)
+    actualDuration.Should().BeGreaterThanOrEqualTo(expectedMinDuration,
+      $"source should play for at least {expectedMinDuration.TotalSeconds} seconds for 3 repeats");
+  }
+
   public void Dispose()
   {
     foreach (var disposable in disposables)

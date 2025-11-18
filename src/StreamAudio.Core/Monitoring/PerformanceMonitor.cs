@@ -101,7 +101,16 @@ public class PerformanceMonitor : IDisposable
     while (!cancellationToken.IsCancellationRequested && !disposed)
     {
       yield return GetSnapshot();
-      await Task.Delay(intervalMs, cancellationToken);
+      
+      try
+      {
+        await Task.Delay(intervalMs, cancellationToken);
+      }
+      catch (TaskCanceledException)
+      {
+        // Expected when cancellation is requested during delay
+        yield break;
+      }
     }
   }
 
