@@ -6,15 +6,19 @@ using SoundFlow.Structs;
 
 namespace StreamAudio.Tests;
 
-[Collection("AudioTests")]
+[Collection("ChromeCastTests")]
 public class ChromeCastAudioPlaybackTests : IDisposable
 {
   private readonly List<IDisposable> disposables = new();
   private readonly string _testDir;
   private readonly IStorage _testStorage;
+  private static readonly SemaphoreSlim StorageLock = new(1, 1);
 
   public ChromeCastAudioPlaybackTests()
   {
+    // Wait for storage lock to ensure sequential execution
+    StorageLock.Wait();
+    
     _testDir = Path.Combine(Path.GetTempPath(), $"streamaudio_chromecast_test_{Guid.NewGuid():N}");
     Directory.CreateDirectory(_testDir);
     
@@ -241,5 +245,14 @@ public class ChromeCastAudioPlaybackTests : IDisposable
         // Ignore cleanup errors
       }
     }
+    
+    // Release the storage lock
+    StorageLock.Release();
   }
+}
+
+// Define the ChromeCastTests collection to ensure these tests run sequentially
+[CollectionDefinition("ChromeCastTests", DisableParallelization = true)]
+public class ChromeCastTestsCollection
+{
 }

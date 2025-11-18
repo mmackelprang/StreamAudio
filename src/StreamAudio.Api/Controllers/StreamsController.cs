@@ -33,12 +33,9 @@ public class StreamsController : ControllerBase
         return BadRequest(new { success = false, error = "StreamManager already initialized. Call shutdown first." });
       }
 
-      // Create playback device with specified format or default
-      AudioFormat? format = null;
-      if (request?.SampleRate != null && request?.Channels != null)
-      {
-        format = new AudioFormat(request.SampleRate.Value, request.Channels.Value);
-      }
+      // Create playback device with default format (AudioFormat doesn't have constructor)
+      AudioFormat? format = null; // Will use default DvdHq format
+      // Note: AudioFormat is a SoundFlow struct with predefined formats, not constructible
 
       var playback = new AudioPlayback(format);
       _streamManager = new StreamManager(playback);
@@ -455,8 +452,6 @@ public class StreamsController : ControllerBase
 
 public class InitializeRequest
 {
-  public int? SampleRate { get; set; }
-  public int? Channels { get; set; }
   public float? BackgroundVolume { get; set; }
   public int? MaxStreamDuration { get; set; }
 }
