@@ -35,6 +35,7 @@ public class MetadataHistoryManager
   private readonly IStorage _storage;
   private readonly string _sourceName;
   private readonly bool _isEnabled;
+  private long _sequenceCounter = 0;
 
   /// <summary>
   /// Creates a new metadata history manager for a specific audio source.
@@ -72,8 +73,9 @@ public class MetadataHistoryManager
         SourceName = _sourceName
       };
 
-      // Use timestamp as key for uniqueness
-      var key = $"{_sourceName}_{entry.Timestamp:yyyyMMddHHmmss_fff}";
+      // Use timestamp with sequence counter for guaranteed uniqueness
+      var sequence = System.Threading.Interlocked.Increment(ref _sequenceCounter);
+      var key = $"{_sourceName}_{entry.Timestamp:yyyyMMddHHmmssfff}_{sequence:D6}";
       await _storage.SaveAsync(HistoryTable, key, entry);
 
       ConfigurationManager.Instance.Logger.Debug(

@@ -27,6 +27,7 @@ public class ChromeCastAudioPlayback : IAudioPlayback
   private bool isConnected;
   private readonly SemaphoreSlim connectionLock = new(1, 1);
   private string? currentMediaSessionId;
+  private Task? connectionTask;
 
   /// <summary>
   /// Occurs when the Cast device encounters an error.
@@ -55,7 +56,44 @@ public class ChromeCastAudioPlayback : IAudioPlayback
       deviceName, deviceId ?? "auto-detect");
 
     // Initialize connection asynchronously
-    _ = InitializeConnectionAsync();
+    connectionTask = InitializeConnectionAsync();
+  }
+
+  /// <summary>
+  /// Waits for the Cast device connection to complete.
+  /// </summary>
+  /// <param name="timeout">Optional timeout for the connection. If null, waits indefinitely.</param>
+  /// <returns>True if connected successfully, false if connection failed or timed out.</returns>
+  public async Task<bool> WaitForConnectionAsync(TimeSpan? timeout = null)
+  {
+    if (connectionTask == null)
+      return false;
+
+    try
+    {
+      if (timeout.HasValue)
+      {
+        var completedTask = await Task.WhenAny(connectionTask, Task.Delay(timeout.Value));
+        if (completedTask != connectionTask)
+        {
+          ConfigurationManager.Instance.Logger.Warning(
+            "Connection to ChromeCast device timed out after {Timeout}", timeout.Value);
+          return false;
+        }
+      }
+      else
+      {
+        await connectionTask;
+      }
+
+      return isConnected;
+    }
+    catch (Exception ex)
+    {
+      ConfigurationManager.Instance.Logger.Error(ex,
+        "Error waiting for ChromeCast connection");
+      return false;
+    }
   }
 
   /// <summary>

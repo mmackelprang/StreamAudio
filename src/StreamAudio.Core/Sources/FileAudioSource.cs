@@ -121,7 +121,11 @@ public class FileAudioSource : IAudioSource
             {
               // Completed all files, check repeat count
               if (RepeatCount != 0 && currentPlayCount >= RepeatCount)
+              {
+                // Stop the timer and ensure we're in stopped state
+                loopTimer?.Stop();
                 return; // Done repeating
+              }
             }
             InitializeCurrentFile();
           }
@@ -138,6 +142,11 @@ public class FileAudioSource : IAudioSource
               // Ignore errors during loop
             }
           }
+        }
+        else
+        {
+          // RepeatCount reached - stop the timer
+          loopTimer?.Stop();
         }
       }
     };

@@ -75,6 +75,26 @@ public static class PlatformInfo
   public static Architecture OSArchitecture => RuntimeInformation.OSArchitecture;
 
   /// <summary>
+  /// Gets a value indicating whether audio playback is available on the current system.
+  /// </summary>
+  public static bool HasAudioPlayback
+  {
+    get
+    {
+      try
+      {
+        var devices = AudioDeviceEnumerator.GetPlaybackDevices();
+        return devices.Any();
+      }
+      catch
+      {
+        // If we can't enumerate devices, assume no audio playback
+        return false;
+      }
+    }
+  }
+
+  /// <summary>
   /// Gets a friendly name for the current platform.
   /// </summary>
   public static string PlatformName
