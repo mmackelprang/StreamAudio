@@ -46,6 +46,10 @@ public class ConfigurationManager
 
   private ConfigurationManager()
   {
+    // Detect if running in test environment
+    var isTestEnvironment = AppDomain.CurrentDomain.GetAssemblies()
+      .Any(a => a.FullName?.StartsWith("xunit", StringComparison.OrdinalIgnoreCase) == true);
+
     // Build configuration from appsettings.json and environment variables
     var configBuilder = new ConfigurationBuilder()
       .SetBasePath(Directory.GetCurrentDirectory())
@@ -70,8 +74,11 @@ public class ConfigurationManager
       _settings.RootDir = Path.GetFullPath(_settings.RootDir);
     }
 
-    // Check if appsettings.json exists and warn if not
-    CheckAppSettingsFile();
+    // Check if appsettings.json exists and warn if not (but silence during tests)
+    if (!isTestEnvironment)
+    {
+      CheckAppSettingsFile();
+    }
 
     // Initialize logger
     InitializeLogger();
@@ -79,8 +86,11 @@ public class ConfigurationManager
     // Ensure directories exist
     EnsureDirectories();
 
-    // Log startup information
-    LogStartupInfo();
+    // Log startup information (but silence during tests)
+    if (!isTestEnvironment)
+    {
+      LogStartupInfo();
+    }
   }
 
   private void CheckAppSettingsFile()
@@ -107,6 +117,10 @@ public class ConfigurationManager
 
   private void InitializeLogger()
   {
+    // Detect if running in test environment
+    var isTestEnvironment = AppDomain.CurrentDomain.GetAssemblies()
+      .Any(a => a.FullName?.StartsWith("xunit", StringComparison.OrdinalIgnoreCase) == true);
+
     // Parse log level
     if (!Enum.TryParse<LogEventLevel>(_settings.Logging.MinimumLevel, true, out var minLevel))
     {
@@ -120,8 +134,8 @@ public class ConfigurationManager
       .Enrich.WithMachineName()
       .Enrich.WithEnvironmentName();
 
-    // Add console sink if enabled
-    if (_settings.Logging.WriteToConsole)
+    // Add console sink if enabled (but silence during tests)
+    if (_settings.Logging.WriteToConsole && !isTestEnvironment)
     {
       logConfig.WriteTo.Console(
         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}"
