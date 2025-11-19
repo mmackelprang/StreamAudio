@@ -81,6 +81,8 @@ public class TtsAudioSource : IAudioSource
   private Stream? audioStream;
   private bool disposed;
   private readonly AudioFormat format;
+  private readonly System.Timers.Timer? loopTimer;
+  private int currentPlayCount = 0;
 
   public TtsAudioSource(string text, AudioFormat? format = null, TtsConfiguration? config = null)
   {
@@ -90,6 +92,54 @@ public class TtsAudioSource : IAudioSource
     this.text = text;
     this.config = config ?? new TtsConfiguration();
     this.format = format ?? AudioFormat.DvdHq;
+    
+    // Set up a timer to monitor for playback end and loop/repeat if needed
+    loopTimer = new System.Timers.Timer(100); // Check every 100ms
+    loopTimer.Elapsed += (sender, e) =>
+    {
+      // Check if looping/repeating is enabled (Loop = true OR RepeatCount > 1 OR RepeatCount = 0 for infinite)
+      bool shouldLoop = Loop || RepeatCount > 1 || RepeatCount == 0;
+      
+      if (shouldLoop && player != null && player.State == SoundFlow.Enums.PlaybackState.Stopped && !disposed)
+      {
+        // Check if we should repeat based on RepeatCount
+        // RepeatCount = 0 means infinite, RepeatCount = 1 means play once (no repeat)
+        bool shouldContinue = (RepeatCount == 0) || (currentPlayCount < RepeatCount);
+        
+        if (shouldContinue)
+        {
+          // Increment play count when starting a new iteration
+          currentPlayCount++;
+          
+          // Restart playback - need to reinitialize since TTS is typically a one-shot stream
+          try
+          {
+            // Seek to beginning if possible
+            if (audioStream != null && audioStream.CanSeek)
+            {
+              audioStream.Seek(0, SeekOrigin.Begin);
+              player?.Play();
+            }
+            else
+            {
+              // If stream cannot seek, need to regenerate (rare case)
+              InitializePlayer();
+              player?.Play();
+            }
+          }
+          catch
+          {
+            // Ignore errors during loop
+          }
+        }
+        else
+        {
+          // RepeatCount reached - stop the timer
+          loopTimer?.Stop();
+        }
+      }
+    };
+    loopTimer.Start();
   }
 
   /// <summary>
@@ -121,6 +171,12 @@ public class TtsAudioSource : IAudioSource
   /// TTS sources play once by default.
   /// </summary>
   public int RepeatCount { get; set; } = 1;
+
+  /// <summary>
+  /// Gets or sets whether the audio should loop.
+  /// Note: Looping is handled by monitoring playback state and restarting when finished.
+  /// </summary>
+  public bool Loop { get; set; }
 
   /// <summary>
   /// Gets metadata for TTS (null - TTS doesn't have song metadata).
@@ -156,6 +212,11 @@ public class TtsAudioSource : IAudioSource
     if (player == null)
     {
       InitializePlayer();
+    }
+    // Initialize play count to 0 if starting fresh (first play doesn't count as a repeat)
+    if (currentPlayCount == 0)
+    {
+      currentPlayCount = 1;
     }
     player!.Play();
   }
@@ -554,6 +615,8 @@ public class TtsAudioSource : IAudioSource
       return;
 
     disposed = true;
+    loopTimer?.Stop();
+    loopTimer?.Dispose();
     player?.Stop();
     player?.Dispose();
     dataProvider?.Dispose();
