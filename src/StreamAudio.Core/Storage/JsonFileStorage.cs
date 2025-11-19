@@ -278,6 +278,22 @@ public class JsonFileStorage : IStorage
     // No resources to dispose for file-based storage
   }
 
+  public Task<bool> TableExistsAsync(string table)
+  {
+    var tableFile = GetTableFilePath(table);
+    return Task.FromResult(File.Exists(tableFile));
+  }
+
+  public Task DeleteTableAsync(string table)
+  {
+    var tableFile = GetTableFilePath(table);
+    if (File.Exists(tableFile))
+    {
+      File.Delete(tableFile);
+    }
+    return Task.CompletedTask;
+  }
+
   private string GetTableFilePath(string table)
   {
     return Path.Combine(_storageDir, $"{table}.json");

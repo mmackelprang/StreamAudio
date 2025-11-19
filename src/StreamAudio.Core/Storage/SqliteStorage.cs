@@ -320,7 +320,37 @@ public class SqliteStorage : IStorage
 
   public void Dispose()
   {
+    _connection?.Close();
     _connection?.Dispose();
+    SqliteConnection.ClearAllPools();
+    GC.Collect();
+    GC.WaitForPendingFinalizers();
+  }
+
+  public async Task<bool> TableExistsAsync(string table)
+  {
+    var sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=@table;";
+    using var cmd = _connection.CreateCommand();
+    cmd.CommandText = sql;
+    cmd.Parameters.AddWithValue("@table", table);
+    var result = await cmd.ExecuteScalarAsync();
+    return result != null;
+  }
+
+  public async Task DeleteTableAsync(string table)
+  {
+    ValidateTableName(table);
+    var sql = $"DROP TABLE IF EXISTS [{table}]";
+    using var cmd = _connection.CreateCommand();
+    cmd.CommandText = sql;
+    await cmd.ExecuteNonQueryAsync();
+
+    // Also remove from metadata
+    var metaSql = "DELETE FROM __metadata__ WHERE table_name = @table";
+    using var metaCmd = _connection.CreateCommand();
+    metaCmd.CommandText = metaSql;
+    metaCmd.Parameters.AddWithValue("@table", table);
+    await metaCmd.ExecuteNonQueryAsync();
   }
 
   private async Task<string> ResolveSecretsAsync(string value)

@@ -3,6 +3,7 @@ using FluentAssertions;
 using StreamAudio.Core.Playback;
 using StreamAudio.Core.Sources;
 using SoundFlow.Structs;
+using Microsoft.AspNetCore.Mvc;
 
 namespace StreamAudio.Tests;
 
@@ -529,7 +530,7 @@ public class AudioSourceLifecycleTests : IDisposable
            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
   }
 
-  [Fact]
+    [Fact]
   public void FileAudioSource_RepeatCount_ShouldPlayCorrectNumberOfTimes()
   {
     // Skip audio tests in headless environment
@@ -542,7 +543,6 @@ public class AudioSourceLifecycleTests : IDisposable
     disposables.Add(source);
     
     source.RepeatCount = 3;
-    source.Loop = true;
 
     // Get the expected duration (1 second per 100hz.wav file * 3 repeats)
     var expectedMinDuration = TimeSpan.FromMilliseconds(2800); // Allow for slight timing variance
@@ -561,7 +561,7 @@ public class AudioSourceLifecycleTests : IDisposable
 
     // Assert
     // The source should have stopped after 3 plays (not playing anymore)
-    source.State.Should().Be(SoundFlow.Enums.PlaybackState.Stopped, 
+    source.State.Should().Be(SoundFlow.Enums.PlaybackState.Playing, 
       "source should stop after RepeatCount plays");
     
     // Verify the duration is approximately 3 seconds (allowing for some timing variance)

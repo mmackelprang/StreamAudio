@@ -77,4 +77,17 @@ public interface IStorage : IDisposable
   /// </summary>
   /// <param name="backupPath">Path to the backup file</param>
   Task RestoreAsync(string backupPath);
+
+  /// <summary>
+  /// Checks if a table exists in the storage.
+  /// </summary>
+  /// <param name="table">The name of the table.</param>
+  /// <returns>True if the table exists, false otherwise.</returns>
+  Task<bool> TableExistsAsync(string table);
+
+  /// <summary>
+  /// Deletes a table from the storage.
+  /// </summary>
+  /// <param name="table">The name of the table to delete.</param>
+  Task DeleteTableAsync(string table);
 }

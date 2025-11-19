@@ -172,11 +172,9 @@ public class MetadataHistoryManager
     try
     {
       var storage = StorageManager.Instance.Storage;
-      var keys = await storage.GetKeysAsync(HistoryTable);
-
-      foreach (var key in keys)
+      if (await storage.TableExistsAsync(HistoryTable))
       {
-        await storage.DeleteAsync(HistoryTable, key);
+        await storage.DeleteTableAsync(HistoryTable);
       }
 
       ConfigurationManager.Instance.Logger.Information("Cleared all metadata history");
