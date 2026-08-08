@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 922 256">
+  <g transform="translate(0,40) scale(0.6875)">
+    <rect width="256" height="256" rx="56" fill="#253C4B"/>
+
+<g stroke="#7A93A5" stroke-width="6" stroke-linecap="round">
+  <line x1="84" y1="58" x2="84" y2="150"/><line x1="128" y1="58" x2="128" y2="150"/><line x1="172" y1="58" x2="172" y2="150"/>
+</g>
+<rect x="70" y="84" width="28" height="17" rx="5" fill="#4ECCA3"/>
+<rect x="114" y="114" width="28" height="17" rx="5" fill="#4ECCA3"/>
+<rect x="158" y="70" width="28" height="17" rx="5" fill="#4ECCA3"/>
+<path d="M56 190 C76 168 96 212 116 190 C136 168 156 212 176 190 C186 179 196 185 202 190" fill="none" stroke="#4ECCA3" stroke-width="7" stroke-linecap="round"/>
+
+  </g>
+  <text x="224" y="140" font-family="Montserrat, 'Segoe UI', 'DejaVu Sans', system-ui, sans-serif" font-size="84" font-weight="700" fill="#1B1F26">StreamAudio</text>
+  <text x="224" y="192" font-family="Montserrat, 'Segoe UI', 'DejaVu Sans', system-ui, sans-serif" font-size="32" font-weight="500" fill="#5A6472">The mix behind the console.</text>
+</svg>
